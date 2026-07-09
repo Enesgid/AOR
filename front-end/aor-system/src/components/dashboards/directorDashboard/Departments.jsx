@@ -20,7 +20,7 @@ const Departments = () => {
     const fetchLiveSubmissions = async () => {
       try {
         const token = localStorage.getItem("token");
-        const response = await fetch("http://localhost:5000/api/submissions", {
+        const response = await fetch("https://aor-q19z.onrender.com/api/submissions", {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();

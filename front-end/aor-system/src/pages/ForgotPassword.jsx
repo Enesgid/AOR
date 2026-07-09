@@ -16,7 +16,7 @@ const ForgotPassword = () => {
 
     try {
       const response = await fetch(
-        "http://localhost:5000/api/users/reset-password",
+        "https://aor-q19z.onrender.com/api/users/reset-password",
         {
           method: "POST",
           headers: {

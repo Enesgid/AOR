@@ -51,7 +51,7 @@ const fetchNotifications = async () => {
     const token = localStorage.getItem("token");
 
     const response = await fetch(
-      "http://localhost:5000/api/notifications",
+      "https://aor-q19z.onrender.com/api/notifications",
       {
         headers: {
           Authorization: `Bearer ${token}`,

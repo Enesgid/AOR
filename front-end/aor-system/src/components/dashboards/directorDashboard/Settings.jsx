@@ -112,7 +112,7 @@ useEffect(() => {
   const fetchSettings = async () => {
     try {
       const response = await fetch(
-        "http://localhost:5000/api/settings"
+        "https://aor-q19z.onrender.com/api/settings"
       );
 
       const data = await response.json();
@@ -132,7 +132,7 @@ const saveInstitutionSettings = async () => {
     const token = localStorage.getItem("token");
 
     const response = await fetch(
-      "http://localhost:5000/api/settings",
+      "https://aor-q19z.onrender.com/api/settings",
       {
         method: "PUT",
         headers: {
@@ -164,7 +164,7 @@ const deleteAllSubmissions = async () => {
     const token = localStorage.getItem("token");
 
     const response = await fetch(
-      "http://localhost:5000/api/submissions/delete-all",
+      "https://aor-q19z.onrender.com/api/submissions/delete-all",
       {
         method: "DELETE",
         headers: {
@@ -566,7 +566,7 @@ const deleteAllSubmissions = async () => {
           const token = localStorage.getItem("token");
 
           const response = await fetch(
-            "http://localhost:5000/api/users/profile",
+            "https://aor-q19z.onrender.com/api/users/profile",
             {
               method: "PUT",
               headers: {

@@ -52,7 +52,7 @@ const handlePdfExport = () => {
     const token = localStorage.getItem("token");
 
     const response = await fetch(
-      "http://localhost:5000/api/submissions",
+      "https://aor-q19z.onrender.com/api/submissions",
       {
         headers: {
           Authorization: `Bearer ${token}`,

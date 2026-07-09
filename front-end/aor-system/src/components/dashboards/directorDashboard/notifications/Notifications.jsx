@@ -26,7 +26,7 @@ const fetchNotifications = async () => {
     const token = localStorage.getItem("token");
 
     const response = await fetch(
-      "http://localhost:5000/api/notifications",
+      "https://aor-q19z.onrender.com/api/notifications",
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -47,7 +47,7 @@ const markAllAsRead = async () => {
     const token = localStorage.getItem("token");
 
     await fetch(
-      "http://localhost:5000/api/notifications/read-all",
+      "https://aor-q19z.onrender.com/api/notifications/read-all",
       {
         method: "PATCH",
         headers: {
@@ -65,7 +65,7 @@ const clearAll = async () => {
     const token = localStorage.getItem("token");
 
    await fetch(
-  "http://localhost:5000/api/notifications",
+  "https://aor-q19z.onrender.com/api/notifications",
   {
     method: "DELETE",
     headers: {

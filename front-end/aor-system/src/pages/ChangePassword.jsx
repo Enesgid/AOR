@@ -31,7 +31,7 @@ const ChangePassword = () => {
         localStorage.getItem("token");
 
       const response = await fetch(
-        "http://localhost:5000/api/users/first-login",
+        "https://aor-q19z.onrender.com/api/users/first-login",
         {
           method: "PUT",
           headers: {

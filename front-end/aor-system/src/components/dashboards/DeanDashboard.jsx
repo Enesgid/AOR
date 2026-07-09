@@ -24,7 +24,7 @@ try {
   const token = localStorage.getItem('token');
 
   const response = await fetch(
-    'http://localhost:5000/api/submissions',
+    'https://aor-q19z.onrender.com/api/submissions',
     {
       headers: {
         'Authorization': `Bearer ${token}`
@@ -106,7 +106,7 @@ try {
       const token = localStorage.getItem('token'); 
 
 
-      const response = await fetch(`http://localhost:5000/api/submissions/${id}/status`, {
+      const response = await fetch(`https://aor-q19z.onrender.com/api/submissions/${id}/status`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',

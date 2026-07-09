@@ -40,7 +40,7 @@ const AorForm = () => {
       }
 
       try {
-        const response = await fetch(`http://localhost:5000/api/submissions/track/${storedPf}`, {
+        const response = await fetch(`https://aor-q19z.onrender.com/api/submissions/track/${storedPf}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -92,7 +92,7 @@ const AorForm = () => {
   const fetchInstitutionSettings = async () => {
     try {
       const response = await fetch(
-        "http://localhost:5000/api/settings"
+        "https://aor-q19z.onrender.com/api/settings"
       );
 
       const data = await response.json();
@@ -187,7 +187,7 @@ const AorForm = () => {
     try {
       let response;
       if (submissionId) {
-        response = await fetch(`http://localhost:5000/api/submissions/${submissionId}`, {
+        response = await fetch(`https://aor-q19z.onrender.com/api/submissions/${submissionId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' ,
             'Authorization': `Bearer ${token}`
@@ -195,7 +195,7 @@ const AorForm = () => {
           body: JSON.stringify(payload)
         });
       } else {
-        response = await fetch('http://localhost:5000/api/submissions', {
+        response = await fetch('https://aor-q19z.onrender.com/api/submissions', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' ,
             'Authorization': `Bearer ${token}`
