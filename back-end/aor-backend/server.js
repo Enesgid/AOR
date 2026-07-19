@@ -35,14 +35,6 @@ const createNotification = async ({
     type = "info",
     link = "",
 }) => {
-   console.log("Creating notification:", {
-        recipientRole,
-        recipientDepartment,
-        recipientSchool,
-        recipientPFNumber,
-        title,
-        message,
-    });
     await Notification.create({
         recipientRole,
         recipientDepartment,
@@ -53,7 +45,6 @@ const createNotification = async ({
         type,
         link,
     });
-    console.log("Notification created successfully");
 };
     
 // --- REGISTER A NEW USER ---
@@ -628,14 +619,11 @@ app.put(
 app.post("/api/users/reset-password", async (req, res) => {
   try {
     const { pfNumber, name } = req.body;
-    console.log("Received PF:", pfNumber);
-
     const cleanPF = pfNumber.trim().toUpperCase();
 
 const user = await User.findOne({
   pfNumber: cleanPF,
 });
-    console.log("Found User:", user);
 
     if (!user) {
       return res.status(404).json({
@@ -686,7 +674,7 @@ app.put(
         name,
         pfNumber,
         currentPassword,
-        newPassword,
+        newPassword, 
       } = req.body;
 
       const user = await User.findById(req.user.id);
@@ -789,110 +777,7 @@ app.delete(
     }
   }
 );
-// --- MAGIC SETUP ROUTE (Creates test users with password "123") ---
-app.get('/api/setup-users', async (req, res) => {
-  try {
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash("123", salt); 
- await User.deleteMany({});
-const users = [];
-  users.push({
-    name: "Prof. Dauda",
-    pfNumber: "PF400",
-    role: "Director",
-    password: hashedPassword,
-    firstLogin: true,
-});
-const deans = [
-    { school: "SICT", pfNumber: "PF300" },
-    { school: "SIPET", pfNumber: "PF301" },
-    { school: "SFAT", pfNumber: "PF302" },
-    { school: "SSTE", pfNumber: "PF303" },
-    { school: "SAMET",pfNumber:"PF304" },
-    { school: "SIT", pfNumber: "PF305" },
-    { school: "SLS", pfNumber: "PF306" },
-    { school: "SET", pfNumber: "PF307" },
-    { school: "SAHS", pfNumber: "PF308" },
-
-    { school: "SAFT", pfNumber: "PF309" },
-    { school: "SAT", pfNumber: "PF310" },
-    { school: "SEET", pfNumber: "PF311" },
-    { school: "SPS", pfNumber: "PF312" },
-    { school: "PGS", pfNumber: "PF313" },
-    { school: "SBMS", pfNumber: "PF314" },
-    { school: "SPhS", pfNumber: "PF315" },
-];
-
-deans.forEach((dean, index) => {
-    users.push({
-        name: `Dean ${index + 1}`,
-        pfNumber: dean.pfNumber,
-        role: "Dean",
-        password: hashedPassword,
-        school: dean.school,
-        firstLogin: true,
-    });
-});
-let hodCounter = 200;
-
-Object.entries(schoolDepartments).forEach(
-    ([school, departments]) => {
-
-    departments.forEach((department) => {
-
-        users.push({
-            name: `HOD ${department}`,
-            pfNumber: `PF${hodCounter}`,
-            role: "HOD",
-            password: hashedPassword,
-            school,
-            department,
-            firstLogin: true,
-        });
-
-        hodCounter++;
-
-    });
-
-    }
-);
-let lecturerCounter = 1;
-let lecturerPF = 500;
-
-Object.entries(schoolDepartments).forEach(
-    ([school, departments]) => {
-
-        departments.forEach((department) => {
-
-            for (let i = 1; i <= 14; i++) {
-
-                users.push({
-                    name: `Lecturer ${lecturerCounter}`,
-                    pfNumber: `PF${lecturerPF}`,
-                    role: "Lecturer",
-                    password: hashedPassword,
-                    school,
-                    department,
-                    firstLogin: true,
-                });
-
-                lecturerCounter++;
-                lecturerPF++;
-
-            }
-
-        });
-
-    }
-);
-await User.create(users);
-
-  res.send("✅ Test users created successfully! You can now log in with ");
- } catch (error) {
-    console.log(error);
-    res.send("❌ Users might already exist, or there was an error.");
-  }
-}); 
+ 
 app.put(
   "/api/users/profile",
   verifyToken,
