@@ -32,13 +32,20 @@ const LecturerLogin = () => {
 
      if (response.ok) {
 
-  localStorage.setItem("token", data.token);
+localStorage.setItem(
+  "lecturerToken",
+  data.token
+);
 
-  localStorage.setItem(
-    "user",
-    JSON.stringify(data.user)
-  );
+localStorage.setItem(
+  "lecturerUser",
+  JSON.stringify(data.user)
+);
 
+sessionStorage.setItem(
+  "currentPortal",
+  "lecturer"
+);
   localStorage.setItem(
     "loggedInPF",
     data.user.pfNumber
@@ -49,11 +56,11 @@ const LecturerLogin = () => {
     data.user.name
   );
 
-  // First Login
-  if (data.user.firstLogin) {
-    navigate("/changePassword");
-    return;
-  }
+  // First Login temporary disabled for the sake of testing, but should be enabled in production
+  // if (data.user.firstLogin) {
+  //   navigate("/changePassword");
+  //   return;
+  // }
 
   navigate("/lecturer");
 }

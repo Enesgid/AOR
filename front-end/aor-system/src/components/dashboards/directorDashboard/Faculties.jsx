@@ -3,7 +3,7 @@ import DashboardHeader from "../analysis/DashboardHeader";
 import Sidebar from "../analysis/Sidebar";
 import Topbar from "../analysis/TopBar";
 import { processDashboardAnalytics } from "../../../utils/dashboardAnalytics.jsx"; 
-
+import { getCurrentToken } from "../../../utils/session";
 import {
   Building2,
   TrendingUp,
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 import { useState, useEffect } from "react";
+import { errorAlert, successAlert } from "../../../utils/alerts.js";
 
 const Faculties = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -29,7 +30,7 @@ const Faculties = () => {
   // FETCH REAL SUBMISSIONS FROM THE BACKEND
 const fetchSubmissionsData = async () => {
   try {
-    const token = localStorage.getItem("token");
+    const token = getCurrentToken();
 
     const response = await fetch(
       "https://aor-q19z.onrender.com/api/submissions",
@@ -80,7 +81,7 @@ useEffect(() => {
   
   const handleApproveSchool = async (schoolName) => {
   try {
-    const token = localStorage.getItem("token");
+    const token = getCurrentToken();
 
     const response = await fetch(
       "https://aor-q19z.onrender.com/api/submissions/approve-school",
@@ -95,10 +96,10 @@ useEffect(() => {
     );
 
     if (response.ok) {
-      alert(`${schoolName} validated successfully`);
+      await successAlert(`${schoolName} validated successfully`);
       fetchSubmissionsData();
     } else {
-      alert("School approval failed");
+      await errorAlert("School approval failed");
     }
   } catch (err) {
     console.error(err);

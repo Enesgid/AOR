@@ -5,6 +5,7 @@ import Topbar from './analysis/TopBar';
 import Sidebar from './analysis/Sidebar';
 import DashboardHeader from './analysis/DashboardHeader';
 import { Menu } from 'lucide-react';
+import { errorAlert, promptAlert } from '../../utils/alerts';
 const HODDashboard = () => {
   const [submissions, setSubmissions] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -76,8 +77,14 @@ const fetchSubmissions = async () => {
     let payload = {};
 
     if (action === 'Rejected') {
-      const reason = window.prompt("Please provide a reason for rejecting this form back to the Lecturer:");
-      if (reason === null || reason.trim() === '') return; 
+        const result = await promptAlert(
+          "Reject Submission",
+          "Reason for rejection",
+        );
+
+        if (!result.isConfirmed) return;
+
+      const reason = result.value; 
       
       payload = {
         status: 'Rejected',
@@ -87,8 +94,15 @@ const fetchSubmissions = async () => {
     }
 
     if (action === 'Approved') {
-      const signatureName = window.prompt("Enter your full name to officially sign and forward to the Dean:");
-      if (signatureName === null || signatureName.trim() === '') return;
+        const result = await promptAlert(
+          "HOD Signature",
+          "Enter your full name for signature",
+          "John Doe"
+        );
+
+if (!result.isConfirmed) return;
+
+const signatureName = result.value;
 
       const formattedDate = new Date().toLocaleDateString('en-GB', {
         day: 'numeric', month: 'short', year: 'numeric'
@@ -118,10 +132,10 @@ const fetchSubmissions = async () => {
         setViewingForm(null); 
         fetchSubmissions(); 
       } else {
-        alert("Failed to update status.");
+       await errorAlert ("Failed to update status.");
       }
     } catch (error) {
-      alert("Server error while updating status.");
+     await errorAlert("Server error while updating status.");
     } finally {
       setIsProcessing(false);
     }

@@ -14,6 +14,9 @@ import Settings from './components/dashboards/directorDashboard/Settings';
 import Notifications from './components/dashboards/directorDashboard/notifications/Notifications';
 import ChangePassword from './pages/ChangePassword';
 import ForgotPassword from './pages/ForgotPassword';
+import ProtectedRoute from './components/protectedRoute';
+import Unauthorized from './pages/Unauthorized';
+import NotFound from './pages/NotFound';
 
 function App() {
   return (
@@ -24,36 +27,99 @@ function App() {
 
   <Route path="/" element={<Navigate to="/lectLogin" replace />} />
 
-  <Route path="/lecturer" element={<AorForm />} />
+<Route
+  path="/lecturer"
+  element={
+    <ProtectedRoute allowedRoles={["Lecturer"]}>
+      <AorForm />
+    </ProtectedRoute>
+  }
+/>
 
-  <Route path="/hod" element={<HodDashboard />} />
+<Route
+  path="/hod"
+  element={
+    <ProtectedRoute allowedRoles={["HOD"]}>
+      <HodDashboard />
+    </ProtectedRoute>
+  }
+/>
 
-  <Route path="/dean" element={<DeanDashboard />} />
+<Route
+  path="/dean"
+  element={
+    <ProtectedRoute allowedRoles={["Dean"]}>
+      <DeanDashboard />
+    </ProtectedRoute>
+  }
+/>
 
-  <Route path="/director" element={<DirectorDashboard />} />
-
-  <Route path="/faculties" element={<Faculties />} />
+<Route
+  path="/director"
+  element={
+    <ProtectedRoute allowedRoles={["Director"]}>
+      <DirectorDashboard />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="/faculties"
+  element={
+    <ProtectedRoute allowedRoles={["Director"]}>
+      <Faculties />
+    </ProtectedRoute>
+  }
+/>
   <Route path="/forgot-password" element={<ForgotPassword />} />
 
   <Route path="/lectLogin" element={<LectLogin />} />
 
   <Route path="/adminLogin" element={<AdminLogin />} />
-  <Route path="/departments" element={<Departments />} />
+  <Route
+    path="/departments"
+    element={
+      <ProtectedRoute allowedRoles={["Director"]}>
+        <Departments />
+      </ProtectedRoute>
+    }
+  />
   <Route path="/changePassword" element={<ChangePassword />} />
   <Route
-  path="/departments/:school"
-  element={<Departments />}
-/>
+    path="/departments/:school"
+    element={
+      <ProtectedRoute allowedRoles={["Director"]}>
+        <Departments />
+      </ProtectedRoute>
+    }
+  />
 <Route
   path="/department/:school/:department"
-  element={<DepartmentDetails />}
+  element={
+    <ProtectedRoute allowedRoles={["Director"]}>
+      <DepartmentDetails />
+    </ProtectedRoute>
+  }
 />
 <Route
   path="/settings"
-  element={<Settings/>}
+  element={
+    <ProtectedRoute allowedRoles={["Director"]}>
+      <Settings />
+    </ProtectedRoute>
+  }
 />
-<Route path='/notifications' 
-element ={<Notifications/>} />
+<Route
+  path="/notifications"
+  element={
+    <ProtectedRoute
+      allowedRoles={["Director", "Dean", "HOD"]}
+    >
+      <Notifications />
+    </ProtectedRoute>
+  }
+/>
+<Route path="/unauthorized" element={<Unauthorized />} />
+<Route path="*" element={<NotFound />} />
 
 </Routes>
       </div>

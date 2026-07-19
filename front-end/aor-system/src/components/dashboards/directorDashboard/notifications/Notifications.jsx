@@ -3,7 +3,7 @@ import { Menu } from "lucide-react";
 import Sidebar from "../../analysis/Sidebar";
 import DashboardHeader from "../../analysis/DashboardHeader";
 import Topbar from "../../analysis/TopBar";
-
+import { getCurrentToken } from "../../../../utils/session";
 
 
 const Notifications = () => {
@@ -23,7 +23,7 @@ useEffect(() => {
 
 const fetchNotifications = async () => {
   try {
-    const token = localStorage.getItem("token");
+    const token = getCurrentToken();
 
     const response = await fetch(
       "https://aor-q19z.onrender.com/api/notifications",
@@ -44,7 +44,7 @@ const fetchNotifications = async () => {
 const markAllAsRead = async () => {
   try {
 
-    const token = localStorage.getItem("token");
+    const token = getCurrentToken();
 
     await fetch(
       "https://aor-q19z.onrender.com/api/notifications/read-all",
@@ -62,7 +62,7 @@ const markAllAsRead = async () => {
 };
 const clearAll = async () => {
   try {
-    const token = localStorage.getItem("token");
+    const token = getCurrentToken();
 
    await fetch(
   "https://aor-q19z.onrender.com/api/notifications",

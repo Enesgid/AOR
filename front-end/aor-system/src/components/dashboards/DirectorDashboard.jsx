@@ -13,6 +13,7 @@ import StatCard from "./analysis/StatCard";
 import Topbar from "./analysis/TopBar.jsx";
 import DashboardHeader from "./analysis/DashboardHeader.jsx";
 import { exportDashboardExcel } from "../../utils/ExportExcel.jsx";
+import { getCurrentToken } from "../../utils/session";
 
 const DirectorDashboard = ({ aiEngineActive = true }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -49,7 +50,7 @@ const handlePdfExport = () => {
 
  const fetchSubmissions = async () => {
   try {
-    const token = localStorage.getItem("token");
+    const token = getCurrentToken();
 
     const response = await fetch(
       "https://aor-q19z.onrender.com/api/submissions",

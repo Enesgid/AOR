@@ -4,7 +4,8 @@ import LecturerInfo from '../components/LecturerInfo';
 import DynamicTable from '../components/DynamicTable';
 import Certification from '../components/Certification';
 import PreviewModal from '../components/PreviewModal';
-
+import { successAlert, confirmAlert } from '../utils/alerts';
+import { getCurrentUser, getCurrentToken } from '../utils/session';
 const AorForm = () => {
   const initialFormData = {
     session: '', semester: '', appointment: ' ', 
@@ -12,6 +13,8 @@ const AorForm = () => {
     school: '', department: '', position: '', phone: '', 
     salaryGrade: '', teachingCredit: '', leave: '', lecturerSignature: ''
   };
+  const user = getCurrentUser();
+const draftKey = `aorDraft_${user?.pfNumber}`;
   const [formData, setFormData] = useState(initialFormData);
   const [institutionSettings, setInstitutionSettings] =
   useState(null);
@@ -19,6 +22,7 @@ const AorForm = () => {
   const [adminRows, setAdminRows] = useState([{ id: 2 }]);
   const [researchRows, setResearchRows] = useState([{ id: 3 }]);
   const [communityRows, setCommunityRows] = useState([{ id: 4 }]);
+  const [draftLoaded, setDraftLoaded] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [previewData, setPreviewData] = useState(null);
@@ -27,69 +31,134 @@ const AorForm = () => {
   const [submissionStatus, setSubmissionStatus] = useState(null); 
   const [rejectionComment, setRejectionComment] = useState('');
   const [rejectedBy, setRejectedBy] = useState(''); 
-  const [submissionId, setSubmissionId] = useState(null); 
+  const [submissionId, setSubmissionId] = useState(null);
+  
+  
+const fetchLecturerData = async () => {
+  const storedPf =
+    localStorage.getItem("loggedInPF") ||
+    localStorage.getItem("pfNumber");
 
-  useEffect(() => {
-    const fetchLecturerData = async () => {
-      const storedPf = localStorage.getItem('loggedInPF') || localStorage.getItem('pfNumber');
-      const token = localStorage.getItem('token');
-    
-      if (!storedPf || !token) {
-        console.warn("Stopping: No PF Number or Token found in LocalStorage");
-        return; 
+  const token = getCurrentToken();
+
+  if (!storedPf || !token) {
+    console.warn("Stopping: No PF Number or Token found in LocalStorage");
+    return null;
+  }
+
+  try {
+    const response = await fetch(
+      `https://aor-q19z.onrender.com/api/submissions/track/${storedPf}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (!response.ok)
+      throw new Error(`Server returned status: ${response.status}`);
+
+    const data = await response.json();
+
+    if (Array.isArray(data) && data.length > 0) {
+      const myForm = data[0];
+
+      setSubmissionId(myForm._id);
+      setSubmissionStatus(myForm.status);
+
+      if (myForm.status === "Rejected") {
+        setRejectionComment(
+          myForm.rejectionReason ||
+          myForm.reason ||
+          "No specific reason provided."
+        );
+
+        setRejectedBy(
+          myForm.rejectedBy || "Management"
+        );
       }
 
-      try {
-        const response = await fetch(`https://aor-q19z.onrender.com/api/submissions/track/${storedPf}`, {
-          headers: { 'Authorization': `Bearer ${token}` }
-        });
-        
-        if (!response.ok) throw new Error(`Server returned status: ${response.status}`);
-        
-        const data = await response.json();
+      setPreviewData(myForm);
 
-        if (Array.isArray(data) && data.length > 0) {
-          const myForm = data[0]; 
-          
-          setSubmissionId(myForm._id);
-          setSubmissionStatus(myForm.status);
-          
-          if (myForm.status === 'Rejected') {
-            setRejectionComment(myForm.rejectionReason || myForm.reason || "No specific reason provided.");
-            setRejectedBy(myForm.rejectedBy || "Management"); 
-          }
+      return myForm;
+    }
 
-          setFormData((prev) => ({
-            ...prev,
-            ...myForm.lecturerDetails,
+    // No submission found
+    return null;
 
-            session:
-              institutionSettings?.academicSession ||
-              myForm.lecturerDetails.session,
+  } catch (error) {
+    console.error("❌ Error fetching profile:", error);
 
-            semester:
-              institutionSettings?.semester ||
-              myForm.lecturerDetails.semester,
-          }));
-          setTeachingRows(myForm.teaching?.length ? myForm.teaching : [{ id: 1 }]);
-          setAdminRows(myForm.administrativeDuties?.length ? myForm.administrativeDuties : [{ id: 2 }]);
-          setResearchRows(myForm.research?.length ? myForm.research : [{ id: 3 }]);
-          setCommunityRows(myForm.communityService?.length ? myForm.communityService : [{ id: 4 }]);
-          
-          setPreviewData(myForm);
-        } else {
-          setFormData(prev => ({ ...prev, pfNumber: storedPf })); 
-        }
-      } catch (error) {
-        console.error("❌ Error fetching profile:", error);
-        setFormData(prev => ({ ...prev, pfNumber: storedPf }));
-      }
-    };
+    return null;
+  }
+};        const loadDraft = () => {
+        const savedDraft = localStorage.getItem(draftKey);
 
-    fetchLecturerData();
-  }, []);
+        if (!savedDraft) return false;
+
+        try {
+          const draft = JSON.parse(savedDraft);
+
+          setFormData(draft.formData || initialFormData);
+          setTeachingRows(draft.teachingRows || [{ id: 1 }]);
+          setAdminRows(draft.adminRows || [{ id: 2 }]);
+          setResearchRows(draft.researchRows || [{ id: 3 }]);
+          setCommunityRows(draft.communityRows || [{ id: 4 }]);
+
+          return true;
+        } catch (err) {
+          console.error(err);
+          return false;
+        }};
+useEffect(() => {
+
+  const initializeForm = async () => {
+
+    const hasDraft = loadDraft();
+    const submission = await fetchLecturerData();
+    if (!hasDraft && submission) {
+
+      setFormData(prev => ({
+        ...prev,
+        ...submission.lecturerDetails,
+      }));
+
+      setTeachingRows(
+        submission.teaching?.length
+          ? submission.teaching
+          : [{ id: 1 }]
+      );
+
+      setAdminRows(
+        submission.administrativeDuties?.length
+          ? submission.administrativeDuties
+          : [{ id: 2 }]
+      );
+
+      setResearchRows(
+        submission.research?.length
+          ? submission.research
+          : [{ id: 3 }]
+      );
+
+      setCommunityRows(
+        submission.communityService?.length
+          ? submission.communityService
+          : [{ id: 4 }]
+      );
+    }
+
+    setDraftLoaded(true);
+
+  };
+
+  initializeForm();
+
+}, []);
+
     useEffect(() => {
-  const fetchInstitutionSettings = async () => {
+    const fetchInstitutionSettings = async () => {
     try {
       const response = await fetch(
         "https://aor-q19z.onrender.com/api/settings"
@@ -130,6 +199,7 @@ const AorForm = () => {
       calculateTotal(adminRows, 'qap') + 
       calculateTotal(researchRows, 'percentInput')
     ).toFixed(2);
+
     return {
       lecturerDetails: formData,
       teaching: teachingRows,
@@ -210,7 +280,7 @@ const AorForm = () => {
           setSubmissionId(savedData._id);
         }
         
-        alert(submissionId ? "✅ Form Updated & Resubmitted to HOD!" : "✅ Form Saved & Submitted to HOD!");
+        successAlert(submissionId ? "✅ Form Updated & Resubmitted to HOD!" : "✅ Form Saved & Submitted to HOD!");
         setSubmissionStatus("Pending HOD"); 
         setRejectionComment('');
         setRejectedBy('');
@@ -221,22 +291,31 @@ const AorForm = () => {
       console.error("❌ Error connecting to server:", error);
       setErrorMessage("❌ Could not reach the database.");
     }
+    localStorage.removeItem(draftKey);
   };
 
-  const handleClear = () => {
-    if(window.confirm("Are you sure you want to clear the form?")) {
-      setFormData(initialFormData);
-      setTeachingRows([{ id: Date.now() }]);
-      setAdminRows([{ id: Date.now() + 1 }]);
-      setResearchRows([{ id: Date.now() + 2 }]);
-      setCommunityRows([{ id: Date.now() + 3 }]);
-      setErrorMessage("");
-      setSubmissionStatus(null); 
-      setRejectionComment('');
-      setRejectedBy('');
-      setSubmissionId(null); 
-    }
-  };
+const handleClear = async () => {
+  const result = await confirmAlert(
+    "Clear Form",
+    "All unsaved changes will be lost."
+  );
+
+  if (!result.isConfirmed) return;
+
+  setFormData(initialFormData);
+  setTeachingRows([{ id: Date.now() }]);
+  setAdminRows([{ id: Date.now() + 1 }]);
+  setResearchRows([{ id: Date.now() + 2 }]);
+  setCommunityRows([{ id: Date.now() + 3 }]);
+
+  setErrorMessage("");
+  setSubmissionStatus(null);
+  setRejectionComment("");
+  setRejectedBy("");
+  setSubmissionId(null);
+
+  localStorage.removeItem(draftKey);
+};
 
   const isPending = submissionStatus && submissionStatus.startsWith('Pending');
 
@@ -338,6 +417,30 @@ const AorForm = () => {
     ));
   };
 
+useEffect(() => {
+
+  if (!draftLoaded) return;
+
+  if (
+    submissionStatus &&
+    submissionStatus !== "Rejected"
+  ) {
+    return;
+  }
+
+  localStorage.setItem(
+    draftKey,
+    JSON.stringify({
+      formData,
+      teachingRows,
+      adminRows,
+      researchRows,
+      communityRows,
+    })
+  );
+
+}, [
+  draftLoaded, submissionStatus, formData, teachingRows, adminRows, researchRows, communityRows, ]);
   return (
     <div className="containers border">
       <Header />

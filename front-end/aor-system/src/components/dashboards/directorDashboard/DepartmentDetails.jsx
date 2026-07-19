@@ -4,6 +4,7 @@ import { Menu } from "lucide-react";
 import Sidebar from "../analysis/Sidebar";
 import Topbar from "../analysis/TopBar";
 import DashboardHeader from "../analysis/DashboardHeader";
+import { getCurrentToken } from "../../../utils/session";
 
 const DepartmentDetails = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -17,7 +18,7 @@ const DepartmentDetails = () => {
   useEffect(() => {
     const fetchLiveDepartmentData = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = getCurrentToken();
         const response = await fetch("https://aor-q19z.onrender.com/api/submissions", {
           headers: {
             Authorization: `Bearer ${token}`,

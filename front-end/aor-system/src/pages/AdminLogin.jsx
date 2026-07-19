@@ -33,12 +33,20 @@ const AdminLogin = () => {
 
 if (response.ok) {
 
-    localStorage.setItem("token", data.token);
+localStorage.setItem(
+  "adminToken",
+  data.token
+);
 
-    localStorage.setItem(
-        "user",
-        JSON.stringify(data.user)
-    );
+localStorage.setItem(
+  "adminUser",
+  JSON.stringify(data.user)
+);
+
+sessionStorage.setItem(
+  "currentPortal",
+  "admin"
+);
 
     localStorage.setItem(
         "department",
@@ -50,11 +58,11 @@ if (response.ok) {
         data.user.school || ""
     );
 
-    // First login setup
-    if (data.user.firstLogin) {
-        navigate("/changePassword");
-        return;
-    }
+    // First login setup temporary disabled for the sake of testing, but should be enabled in production
+    // if (data.user.firstLogin) {
+    //     navigate("/changePassword");
+    //     return;
+    // }
 
     switch (data.user.role) {
         case "HOD":

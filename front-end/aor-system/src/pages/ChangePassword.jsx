@@ -1,11 +1,13 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
+import { confirmAlert, errorAlert, successAlert } from "../utils/alerts";
+import { getCurrentUser, getCurrentToken } from "../utils/session";
 
 const ChangePassword = () => {
   const navigate = useNavigate();
   const user =
-    JSON.parse(localStorage.getItem("user")) || {};
+    getCurrentUser() || {};
 
   const [name, setName] = useState(user.name || "");
   const [pfNumber, setPfNumber] = useState(
@@ -22,13 +24,13 @@ const ChangePassword = () => {
 
   const handleSave = async () => {
     if (newPassword !== confirmPassword) {
-      alert("Passwords do not match.");
+      errorAlert("Passwords do not match.");
       return;
     }
 
     try {
       const token =
-        localStorage.getItem("token");
+        getCurrentToken();
 
       const response = await fetch(
         "https://aor-q19z.onrender.com/api/users/first-login",
@@ -52,7 +54,7 @@ const ChangePassword = () => {
         await response.json();
 
       if (!response.ok) {
-        alert(data.message);
+      await errorAlert(data.message);
         return;
       }
 
@@ -68,7 +70,7 @@ localStorage.setItem(
   JSON.stringify(data.user)
 );
 
-alert(
+await successAlert(
   "Profile updated successfully."
 );
 
@@ -95,7 +97,7 @@ alert(
 
     } catch (err) {
       console.error(err);
-      alert("Server error.");
+      errorAlert("Server error.");
     }
   };
 
@@ -103,7 +105,6 @@ alert(
         <div>
         <Header/>
         <div className='images'></div>
-    
         <div className='login-form'>
           <div className='login-items'>
           <div id='login-data'>
@@ -111,8 +112,7 @@ alert(
           Welcome {name}
         </h2>
 
-        <p className="text-center text-gray-500 mb-8">
-          Please update your profile before continuing.
+        <p className="text-center text-gray-500 mb-8"> Ensure to change your password and Pf number to original values after updating your profile.
         </p>
         </div>
 
@@ -151,8 +151,8 @@ alert(
 
           <input
             type="password"
-            placeholder="New Password"
-            className="w-full border rounded-xl p-3"
+            placeholder="New Password "
+            className="w-full border rounded-xl p-3 "
             value={newPassword}
             onChange={(e) =>
               setNewPassword(

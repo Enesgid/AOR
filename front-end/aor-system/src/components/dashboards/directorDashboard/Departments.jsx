@@ -5,6 +5,7 @@ import { Menu } from "lucide-react";
 import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import DepartmentPerformanceChart from "./DepartmentPerformanceChart";
+import { getCurrentToken } from "../../../utils/session";
 
 const Departments = () => {
   const { school } = useParams();
@@ -19,7 +20,7 @@ const Departments = () => {
   useEffect(() => {
     const fetchLiveSubmissions = async () => {
       try {
-        const token = localStorage.getItem("token");
+        const token = getCurrentToken();
         const response = await fetch("https://aor-q19z.onrender.com/api/submissions", {
           headers: { Authorization: `Bearer ${token}` },
         });

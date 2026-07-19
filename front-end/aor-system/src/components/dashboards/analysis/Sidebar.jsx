@@ -7,10 +7,11 @@ import {
   X,
   Bell,
 } from "lucide-react";
+import { confirmAlert } from "../../../utils/alerts";
+import {logoutCurrentPortal} from "../../../utils/logout";
 import { useNavigate, NavLink } from "react-router-dom";
-const user =
-  JSON.parse(localStorage.getItem("user")) || {};
-
+import { getCurrentUser } from "../../../utils/session";
+const user = getCurrentUser() || {};
 const role = user.role;
 const dashboardTitle = `${role} Dashboard`;
 const menuItems = {
@@ -100,24 +101,23 @@ const menuItems = {
 const currentMenu = menuItems[role] || [];
 
 const Sidebar = ({ sidebarOpen, setSidebarOpen }) => {
-   const navigate = useNavigate();
-const handleLogout = () => {
-  const confirmLogout = window.confirm(
-    "Are you sure you want to logout?"
+const navigate = useNavigate();
+
+const handleLogout = async () => {
+
+  const confirmLogout = await confirmAlert(
+    "Logout",
+    "You will have to login again to access your account."
   );
 
-  if (!confirmLogout) return;
+  if (!confirmLogout.isConfirmed) return;
 
-  const user =
-    JSON.parse(localStorage.getItem("user")) || {};
+  const portal = sessionStorage.getItem("currentPortal");
 
-  localStorage.removeItem("token");
-  localStorage.removeItem("user");
-  localStorage.removeItem("role");
-  localStorage.removeItem("isLoggedIn");
+  logoutCurrentPortal();
 
-  if (user.role === "Lecturer") {
-    navigate("/lecturerLogin");
+  if (portal === "lecturer") {
+    navigate("/lectLogin");
   } else {
     navigate("/adminLogin");
   }

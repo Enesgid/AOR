@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import {successAlert, errorAlert} from "../utils/alerts";
 
 const ForgotPassword = () => {
   const [pfNumber, setPfNumber] = useState("");
   const [name, setName] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
-
   const navigate = useNavigate();
 
   const handleReset = async (e) => {
@@ -33,7 +33,7 @@ const ForgotPassword = () => {
         setMessage(data.message);
       } 
       else {
-        alert(data.message);
+       await successAlert(data.message);
             if (data.role === "Lecturer") {
             navigate("/");
             } else {

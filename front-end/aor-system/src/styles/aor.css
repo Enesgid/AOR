@@ -7,7 +7,7 @@
   --btn-blue: rgb(21, 21, 187);
   --btn-purple: rgb(78, 9, 78);
   --btn-red: #dc3545;
-  --btn-green: rgb(18, 99, 18);
+  --btn-green: #126312;
   --btn-gray: #6c757d;
   --shadow: rgba(68, 23, 68, 0.466);
   --hover: rgb(192, 14, 192) ;
@@ -436,6 +436,10 @@ color: #ffff; }
   margin: 0; 
   color: rgb(78, 9, 78);
 
+}
+.swal-input {
+  width: 80% !important;
+  box-sizing: border-box;
 }
 .dashB{ 
   text-align: center; 

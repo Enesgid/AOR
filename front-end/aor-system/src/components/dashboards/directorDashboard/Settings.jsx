@@ -4,7 +4,8 @@ import Topbar from "../analysis/TopBar";
 import { useState, useEffect } from "react";
 import { Menu } from "lucide-react";
 import ToggleSwitch from "./SettingsToggle/ToggleSwitch";
-
+import { confirmAlert, errorAlert, successAlert } from "../../../utils/alerts";
+import { getCurrentUser, getCurrentToken } from "../../../utils/session";
 
 
 const Settings = () => {
@@ -17,7 +18,7 @@ const Settings = () => {
 const [deleteText, setDeleteText] = useState("");
     const [user, setUser] = useState(() => {
    return (
-    JSON.parse(localStorage.getItem("user")) || {}
+    getCurrentUser() || {}
   );
 });
 const isDirector = user.role === "Director";
@@ -129,7 +130,7 @@ useEffect(() => {
 }, []);
 const saveInstitutionSettings = async () => {
   try {
-    const token = localStorage.getItem("token");
+    const token = getCurrentToken();
 
     const response = await fetch(
       "https://aor-q19z.onrender.com/api/settings",
@@ -146,22 +147,22 @@ const saveInstitutionSettings = async () => {
     const data = await response.json();
 
     if (!response.ok) {
-      alert(data.message);
+     await confirmAlert(data.message);
       return;
     }
     setSettings(data.settings);
-    alert("Institution settings updated successfully.");
+    successAlert("Institution settings updated successfully.");
 
   } catch (error) {
     console.error(error);
-    alert("Unable to save settings.");
+    errorAlert("Unable to save settings.");
   }
 };
 const deleteAllSubmissions = async () => {
 
   try {
 
-    const token = localStorage.getItem("token");
+    const token = getCurrentToken();
 
     const response = await fetch(
       "https://aor-q19z.onrender.com/api/submissions/delete-all",
@@ -176,11 +177,11 @@ const deleteAllSubmissions = async () => {
     const data = await response.json();
 
     if (!response.ok) {
-      alert(data.message);
+     await confirmAlert(data.message);
       return;
     }
 
-    alert("All submissions deleted successfully.");
+    successAlert("All submissions deleted successfully.");
 
     setShowDeleteModal(false);
     setDeleteText("");
@@ -188,7 +189,7 @@ const deleteAllSubmissions = async () => {
   } catch (err) {
 
     console.error(err);
-    alert("Unable to delete submissions.");
+    errorAlert("Unable to delete submissions.");
 
   }
 
@@ -563,7 +564,7 @@ const deleteAllSubmissions = async () => {
           <button
                   onClick={async () => {
         try {
-          const token = localStorage.getItem("token");
+          const token = getCurrentToken();
 
           const response = await fetch(
             "https://aor-q19z.onrender.com/api/users/profile",
@@ -596,7 +597,7 @@ const deleteAllSubmissions = async () => {
           // Update React state
           setUser(data.user);
 
-          alert("Profile updated successfully!");
+         await successAlert("Profile updated successfully!");
 
           setShowProfileModal(false);
 

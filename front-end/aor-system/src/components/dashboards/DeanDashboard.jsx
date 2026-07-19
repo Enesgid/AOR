@@ -5,6 +5,7 @@ import Topbar from './analysis/TopBar';
 import DashboardHeader from './analysis/DashboardHeader';
 import Sidebar from './analysis/Sidebar';
 import { Menu } from 'lucide-react';
+import { errorAlert, promptAlert } from '../../utils/alerts';
 
 const DeanDashboard = () => {
   const [submissions, setSubmissions] = useState([]);
@@ -76,8 +77,15 @@ try {
     let payload = {};
 
     if (action === 'Rejected') {
-      const reason = window.prompt("Please provide a reason for rejecting this form back to the Lecturer:");
-      if (reason === null || reason.trim() === '') return; 
+const result = await promptAlert(
+  "Reject Submission",
+  "Reason for rejection",
+  "Type the reason here..."
+);
+
+if (!result.isConfirmed) return;
+
+const reason = result.value; 
       
       payload = {
         status: 'Rejected',
@@ -87,8 +95,14 @@ try {
     }
 
     if (action === 'Approved') {
-      const signatureName = window.prompt("Enter your full name to officially sign and forward to the Director:");
-      if (signatureName === null || signatureName.trim() === '') return;
+const result = await promptAlert(
+  "Dean Signature",
+  "Enter your full name to officially sign and forward",
+);
+
+if (!result.isConfirmed) return;
+
+const signatureName = result.value;
 
       const formattedDate = new Date().toLocaleDateString('en-GB', {
         day: 'numeric', month: 'short', year: 'numeric'
@@ -119,10 +133,10 @@ try {
         setViewingForm(null); 
         fetchSubmissions(); 
       } else {
-        alert("Failed to update status.");
+        await errorAlert ("Failed to update status.");
       }
     } catch (error) {
-      alert("Server error while updating status.");
+      await errorAlert("Server error while updating status.");
     } finally {
       setIsProcessing(false);
     }

@@ -3,7 +3,7 @@ import {
   ChevronDown,
   ArrowLeftIcon,
 } from "lucide-react";
-
+import { getCurrentUser, getCurrentToken } from "../../../utils/session";
 import {useEffect, useState,} from "react";
 import { useNavigate } from "react-router-dom";
 const Topbar = ({ showBack = false }) => {
@@ -20,7 +20,7 @@ const Topbar = ({ showBack = false }) => {
   return () => clearInterval(interval);
 }, []);
 const [user, setUser] = useState(
-  JSON.parse(localStorage.getItem("user")) || {}
+  getCurrentUser() || {}
 );
 
 const initials = user.name
@@ -35,7 +35,7 @@ const initials = user.name
     useEffect(() => {
   const handleStorage = () => {
     setUser(
-      JSON.parse(localStorage.getItem("user")) || {}
+      getCurrentUser() || {}
     );
   };
 
@@ -48,7 +48,7 @@ const initials = user.name
 
 const fetchNotifications = async () => {
   try {
-    const token = localStorage.getItem("token");
+    const token = getCurrentToken();
 
     const response = await fetch(
       "https://aor-q19z.onrender.com/api/notifications",
