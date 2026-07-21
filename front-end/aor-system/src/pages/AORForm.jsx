@@ -252,7 +252,7 @@ useEffect(() => {
     if (!validateForm()) return;
     
     const payload = getFullPayload(); 
-    const token = localStorage.getItem('token');
+    const token = getCurrentToken();
 
     try {
       let response;
@@ -606,7 +606,6 @@ useEffect(() => {
                 <option value="DVC">DVC</option>
                 <option value="Assistant PG Coordinators">Assistant PG Coordinators</option>
                 <option value="Center Coordinator">Center Coordinator</option>
-                <option value="Project">Project</option>
                 <option value="PG Coordinators">PG Coordinators</option>
                 <option value="Staff/Student/Association Advisers ">Staff/Student/Association Advisers </option>
                 <option value="Turnitin Officers">Turnitin Officers</option>

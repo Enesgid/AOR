@@ -47,8 +47,8 @@ const LecturerInfo = ({ formData, handleChange }) => {
           <label htmlFor="label">Appointment</label>
             <select id="label" name="appointment" value={formData.appointment} onChange={handleChange}>
             <option value="nill">Select appointment</option>
-            <option value="PT" >PT</option>
-            <option value="FT">FT</option>
+            <option value="PT" >Per Time</option>
+            <option value="FT">Full Time</option>
             <option value="Contract">Contract</option>
           </select>
         </div>
@@ -175,7 +175,7 @@ const LecturerInfo = ({ formData, handleChange }) => {
           <select type="text" name="leave" value={formData.leave} onChange={handleChange} >
             <option value=" ">Select Leave of Absence</option>
             <option value="Study Leave">Study Leave</option>
-            <option value="Sabbatica">Sabbatica</option>
+            <option value="Sabbatica">Sabbatical </option>
             <option value="N/A">N/A</option>
           </select>
         </div>

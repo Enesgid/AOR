@@ -91,7 +91,18 @@ sessionStorage.setItem(
         <form onSubmit={handleLogin} id='format'>
           <div>
             <label className='login-label'>PF Number</label>
-            <input type="text" value={pfNumber} onChange={(e) => setPfNumber(e.target.value)} className='login-input' />
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={pfNumber}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, "").slice(0, 6);
+                setPfNumber(value);
+              }}
+              className="login-input"
+              placeholder="PF Number"
+            />
           </div>
           <div>
             <label className='login-label'>Password</label>

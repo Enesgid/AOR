@@ -6,7 +6,7 @@ const Certification = ({ formData, handleChange }) => (
     <div className="form-grid">
       <div className="form-group">
         <label>Lecturer's Signature / Name</label>
-        <input type="text" name="lecturerSignature" value={formData.lecturerSignature || ''} onChange={handleChange} placeholder="Type your full name" />
+        <input type="text" name="lecturerSignature" value={formData.lecturerSignature || ''} onChange={handleChange} placeholder="Type your Surname" />
       </div>
       <div className="form-group">
         <label>HOD's Signature</label>
