@@ -6,6 +6,7 @@ import DashboardHeader from './analysis/DashboardHeader';
 import Sidebar from './analysis/Sidebar';
 import { Menu } from 'lucide-react';
 import { errorAlert, promptAlert } from '../../utils/alerts';
+import { getCurrentToken, getCurrentUser } from '../../utils/session';
 
 const DeanDashboard = () => {
   const [submissions, setSubmissions] = useState([]);
@@ -22,10 +23,10 @@ const DeanDashboard = () => {
 const fetchSubmissions = async () => {
   
 try {
-  const token = localStorage.getItem('token');
+  const token = getCurrentToken(); // Get the token from local storage
 
   const response = await fetch(
-    'http://localhost:5000/api/submissions',
+    'https://aor-q19z.onrender.com/api/submissions',
     {
       headers: {
         'Authorization': `Bearer ${token}`
@@ -37,8 +38,8 @@ try {
   const data = await response.json();
 
   // Get Dean's school
-  const deanSchool =
-    localStorage.getItem('school');
+    const user = getCurrentUser();
+    const deanSchool = user?.school;
   // Filter only forms meant for this Dean
   const validSubmissions = data.filter(
     (sub) => {
@@ -117,10 +118,10 @@ const signatureName = result.value;
 
     setIsProcessing(true);
    try {
-      const token = localStorage.getItem('token'); 
+      const token = getCurrentToken(); // Get the token from local storage
 
 
-      const response = await fetch(`http://localhost:5000/api/submissions/${id}/status`, {
+      const response = await fetch(`https://aor-q19z.onrender.com/api/submissions/${id}/status`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
@@ -128,7 +129,6 @@ const signatureName = result.value;
         },
         body: JSON.stringify(payload)
       });
-
       if (response.ok) {
         setViewingForm(null); 
         fetchSubmissions(); 

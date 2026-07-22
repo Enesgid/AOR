@@ -6,6 +6,7 @@ import Sidebar from './analysis/Sidebar';
 import DashboardHeader from './analysis/DashboardHeader';
 import { Menu } from 'lucide-react';
 import { errorAlert, promptAlert } from '../../utils/alerts';
+import { getCurrentToken, getCurrentUser } from '../../utils/session';
 const HODDashboard = () => {
   const [submissions, setSubmissions] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);
@@ -23,9 +24,10 @@ const HODDashboard = () => {
 
 const fetchSubmissions = async () => {
     try {
-      const token = localStorage.getItem('token'); 
+      const token = getCurrentToken(); // Get the token from local storage
       // 1. Get the HOD's department from local storage
-      const hodDepartment = localStorage.getItem('department'); 
+      const user = getCurrentUser();
+      const hodDepartment = user?.department; 
 
       const response = await fetch('https://aor-q19z.onrender.com/api/submissions', {
         headers: {
@@ -117,7 +119,7 @@ const signatureName = result.value;
 
     setIsProcessing(true);
     try {
-      const token = localStorage.getItem('token'); // Grab the ID card again
+      const token = getCurrentToken(); // Get the token from local storage
 
       const response = await fetch(`https://aor-q19z.onrender.com/api/submissions/${id}/status`, {
         method: 'PATCH',
