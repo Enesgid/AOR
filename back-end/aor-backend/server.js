@@ -15,8 +15,6 @@ const schoolDepartments = require("./models/schoolDepartments");
 // this prevent backdoor access to the API and only allows .
 app.use(cors()); 
 app.use(express.json()); 
-
-
 mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/aor_database')
   .then(() => console.log('✅ MongoDB Successfully Connected!'))
   .catch((err) => console.error('❌ MongoDB Connection Error:', err));
@@ -809,7 +807,8 @@ app.put(
           school: updatedUser.school,
         },
       });
-    } catch (error) {
+    } 
+    catch (error) {
       console.error(error);
 
       res.status(500).json({
@@ -817,6 +816,7 @@ app.put(
       });
     }
   }
+
 );
 app.get("/api/settings", async (req, res) => {
   try {

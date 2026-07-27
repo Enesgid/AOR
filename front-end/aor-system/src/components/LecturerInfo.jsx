@@ -69,7 +69,7 @@ const LecturerInfo = ({ formData, handleChange }) => {
         </div>
         <div className="form-group">
           <label htmlFor="pfNumber">PF Number</label>
-          <input type="text" name="pfNumber" value={formData.pfNumber} onChange={handleChange}  id="pfNumber"/>
+          <input type="text" disabled name="pfNumber" value={formData.pfNumber} onChange={handleChange}  id="pfNumber"/>
         </div>
       </div>
 

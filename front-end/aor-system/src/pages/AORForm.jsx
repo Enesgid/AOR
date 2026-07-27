@@ -38,8 +38,7 @@ const fetchLecturerData = async () => {
   const storedPf =
     localStorage.getItem("loggedInPF") ||
     localStorage.getItem("pfNumber");
-
-  const token = getCurrentToken();
+    const token = getCurrentToken();
 
   if (!storedPf || !token) {
     console.warn("Stopping: No PF Number or Token found in LocalStorage");
@@ -60,6 +59,7 @@ const fetchLecturerData = async () => {
       throw new Error(`Server returned status: ${response.status}`);
 
     const data = await response.json();
+    const user = getCurrentUser();
 
     if (Array.isArray(data) && data.length > 0) {
       const myForm = data[0];
@@ -84,15 +84,23 @@ const fetchLecturerData = async () => {
       return myForm;
     }
 
-    // No submission found
-    return null;
+   // No previous submission, populate the form from the logged-in user
+if (user) {
+  setFormData(prev => ({
+    ...prev,
+    pfNumber: user.pfNumber || "",
+  }));
+}
+
+return null;
 
   } catch (error) {
     console.error("❌ Error fetching profile:", error);
 
     return null;
   }
-};        const loadDraft = () => {
+};        
+const loadDraft = () => {
         const savedDraft = localStorage.getItem(draftKey);
 
         if (!savedDraft) return false;
@@ -586,7 +594,7 @@ useEffect(() => {
                 <option value="Deans/Directors">Deans/Directors</option>
                 <option value="Deputy Deans/ Directors">Deputy Deans/ Directors</option>
                 <option value="HOD">HOD</option>
-                <option value="Sub Deans/Asst. Dir">Sub Deans/Asst. Dir</option>
+                <option value="Sub Deans/Asst. Dir">Sub Deans/Asst. Director</option>
                 <option value="Examination Officers">Examination Officers</option>
                 <option value="Academic/ level Advisers">Academic/ level Advisers</option>
                 <option value="SIWES Coordinators">SIWES Coordinators</option>

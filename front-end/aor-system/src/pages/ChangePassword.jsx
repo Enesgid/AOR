@@ -23,8 +23,24 @@ const ChangePassword = () => {
     useState("");
 
   const handleSave = async () => {
+    if (
+  !name.trim() ||
+  !pfNumber.trim() ||
+  !currentPassword.trim() ||
+  !newPassword.trim() ||
+  !confirmPassword.trim()
+) {
+  await errorAlert("All fields are required.");
+  return;
+}
     if (newPassword !== confirmPassword) {
-      errorAlert("Passwords do not match.");
+    await  errorAlert("Passwords do not match.");
+      return;
+    }
+    if (newPassword === currentPassword) {
+      await errorAlert(
+        "New password cannot be the same as the current password."
+      );
       return;
     }
 
@@ -59,16 +75,23 @@ const ChangePassword = () => {
       }
 
 // Save the fresh token
-localStorage.setItem(
-  "token",
-  data.token
-);
+const portal = sessionStorage.getItem("currentPortal");
 
-// Save the updated user
-localStorage.setItem(
-  "user",
-  JSON.stringify(data.user)
-);
+if (portal === "lecturer") {
+  localStorage.setItem("lecturerToken", data.token);
+  localStorage.setItem(
+    "lecturerUser",
+    JSON.stringify(data.user)
+  );
+}
+
+if (portal === "admin") {
+  localStorage.setItem("adminToken", data.token);
+  localStorage.setItem(
+    "adminUser",
+    JSON.stringify(data.user)
+  );
+}
 
 await successAlert(
   "Profile updated successfully."
@@ -100,7 +123,11 @@ await successAlert(
       errorAlert("Server error.");
     }
   };
-
+const isFormValid =
+  name.trim() &&
+  currentPassword.trim() &&
+  newPassword.trim() &&
+  confirmPassword.trim();
   return (
         <div>
         <Header/>
@@ -121,26 +148,30 @@ await successAlert(
           <input
             type="text"
             placeholder="Full Name"
-            className="w-full border rounded-xl p-3"
+            className="login-input"
             value={name}
             onChange={(e) =>
               setName(e.target.value)
             }
           />
+
           <input
-            type="text"
-            placeholder="PF Number"
-            className="w-full border rounded-xl p-3"
-            value={pfNumber}
-            onChange={(e) =>
-              setPfNumber(e.target.value)
-            }
-          />
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={pfNumber}
+              onChange={(e) => {
+                const value = e.target.value.replace(/\D/g, "").slice(0, 6);
+                setPfNumber(value);
+              }}
+              className="login-input"
+              placeholder="PF Number"
+            />
 
           <input
             type="password"
             placeholder="Current Password"
-            className="w-full border rounded-xl p-3"
+            className="login-input"
             value={currentPassword}
             onChange={(e) =>
               setCurrentPassword(
@@ -152,7 +183,7 @@ await successAlert(
           <input
             type="password"
             placeholder="New Password "
-            className="w-full border rounded-xl p-3 "
+            className="login-input"
             value={newPassword}
             onChange={(e) =>
               setNewPassword(
@@ -164,7 +195,7 @@ await successAlert(
           <input
             type="password"
             placeholder="Confirm Password"
-            className="w-full border rounded-xl p-3"
+            className="login-input"
             value={confirmPassword}
             onChange={(e) =>
               setConfirmPassword(
@@ -175,10 +206,12 @@ await successAlert(
 
           <button
             onClick={handleSave}
-            className="btn login-btn"
-          >
-          <span>Continue</span>
-            
+            disabled={!isFormValid}
+            className={`btn login-btn ${
+              !isFormValid
+                ? "opacity-50 cursor-not-allowed"
+                : "" }`} >
+            Continue
           </button>
 
         </div>
