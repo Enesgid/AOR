@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect,useRef } from "react";
 import { Link } from "react-router-dom";
 import { Menu, ArrowRight } from "lucide-react";
 import { processDashboardAnalytics } from "../../utils/dashboardAnalytics.jsx";
@@ -10,15 +10,27 @@ import Sidebar from "./analysis/Sidebar";
 import SubmissionLineChart from "./analysis/SubmissionLineChart";
 import SubmissionPieChart from "./analysis/SubmissionPieChart";
 import StatCard from "./analysis/StatCard";
+import AIFloatingButton from "./analysis/AIFloatingButton.jsx";
 import Topbar from "./analysis/TopBar.jsx";
 import DashboardHeader from "./analysis/DashboardHeader.jsx";
 import { exportDashboardExcel } from "../../utils/ExportExcel.jsx";
-import { getCurrentToken } from "../../utils/session";
+import { exportDashboardPDF } from "../../utils/ExportPdfAnalysis.jsx";
+import { getCurrentToken, getCurrentUser } from "../../utils/session";
+import DirectorPdfReport from "./analysis/DirectorPdfReport.jsx";
 
-const DirectorDashboard = ({ aiEngineActive = true }) => {
+const DirectorDashboard = () => {
+  const currentUser = getCurrentUser();
+const isDirector = currentUser?.role === "Director";
+const [aiAssistant, setAiAssistant] = useState(
+  () =>
+    JSON.parse(
+      localStorage.getItem("aiAssistant")
+    ) ?? false
+);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [submissions, setSubmissions] = useState([]);
   const [activeChart, setActiveChart] = useState(null);
+  const reportRef = useRef(null);
   const handleExcelExport = () => {
   exportDashboardExcel(
     submissions,
@@ -45,13 +57,12 @@ useEffect(() => {
     );
 }, []);
 const handlePdfExport = () => {
-  console.log("PDF Export");
+  exportDashboardPDF(reportRef);
 };
 
  const fetchSubmissions = async () => {
   try {
     const token = getCurrentToken();
-
     const response = await fetch(
       "https://aor-q19z.onrender.com/api/submissions",
       {
@@ -82,6 +93,27 @@ useEffect(() => {
   return () => clearInterval(interval);
 
 }, [autoRefresh]);
+useEffect(() => {
+  const handleStorageChange = () => {
+    setAiAssistant(
+      JSON.parse(
+        localStorage.getItem("aiAssistant")
+      ) ?? false
+    );
+  };
+
+  window.addEventListener(
+    "storage",
+    handleStorageChange
+  );
+
+  return () => {
+    window.removeEventListener(
+      "storage",
+      handleStorageChange
+    );
+  };
+}, []);
 
   const dashboardStats = getDashboardStats(submissions);
   const pieChartData = getPieChartData(submissions); 
@@ -294,9 +326,29 @@ useEffect(() => {
             <p className="text-sm text-gray-500 mt-1">Avg Effort: {insights.averageEffort} %</p>
           </div>
         </div>
+        <Alerts />
+        {isDirector && aiAssistant && (
+  <AIFloatingButton />
+)}
+        <div
+          style={{
+          position: "absolute",
+          left: "-9999px",
+          top: 0,
+          }}
+          >
 
-        {aiEngineActive && <Alerts />}
+          <DirectorPdfReport
+              ref={reportRef}
+              submissions={submissions}
+              pieData={pieChartData}
+              schoolData={schoolsData}
+              lineData={lineData}
+          />
+
+          </div>
       </div>
+      
     </div>
   );
 };

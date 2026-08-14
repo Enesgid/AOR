@@ -1,24 +1,62 @@
-// models/User.js
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
-  {
-    name: {type: String, required: true,},
+  { name: { type: String, required: true, },
 
-    pfNumber: { type: String, required: true,unique: true,},
+    pfNumber: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    position: {
+  type: String,
+},
+    role: {
+      type: String,
+      required: true,
+      enum: [
+        "Lecturer",
+        "HOD",
+        "Dean",
+        "Director",
+      ],
+    },
+    password: {
+      type: String,
+      required: true,
+    },
 
-    role: { type: String, required: true, enum: [
-        "Lecturer", "HOD", "Dean", "Director", ],},
+    department: {
+      type: String,
+    },
 
-    password: {type: String,required: true, },
+    school: {
+      type: String,
+    },
 
-    department: {type: String,},
+    firstLogin: {
+      type: Boolean,
+      default: true,
+    },
 
-    school: {type: String,},
-    firstLogin: { type: Boolean, default: true,},
+    // AI Mock HR Data
+    dateOfBirth: {
+      type: Date,
+    },
+
+    dateOfFirstAppointment: {
+      type: Date,
+    },
+
+    isMockHRData: {
+      type: Boolean,
+      default: true,
+    },
   },
 
-  {timestamps: true,}
+  {
+    timestamps: true,
+  }
 );
 
 module.exports = mongoose.model("User", userSchema);

@@ -66,6 +66,12 @@ const [lecturerNotifications, setLecturerNotifications] =
         )
       ) ?? true
   );
+  const [aiAssistant, setAiAssistant] = useState(
+  () =>
+    JSON.parse(
+      localStorage.getItem("aiAssistant")
+    ) ?? false
+);
 
   useEffect(() => {
   localStorage.setItem(
@@ -101,6 +107,12 @@ useEffect(() => {
     JSON.stringify(deanNotifications)
   );
 }, [deanNotifications]);
+useEffect(() => {
+  localStorage.setItem(
+    "aiAssistant",
+    JSON.stringify(aiAssistant)
+  );
+}, [aiAssistant]);
 
 useEffect(() => {
   localStorage.setItem(
@@ -253,7 +265,7 @@ const deleteAllSubmissions = async () => {
         <div className="flex flex-col md:flex-row md:items-center gap-6">
 
     <img
-      src="https://ui-avatars.com/api/?name=Director"
+      src="https://ui-avatars.com/api/?name=Admin"
       alt="Director"
       className="w-24 h-24 rounded-full"
     />
@@ -419,6 +431,18 @@ const deleteAllSubmissions = async () => {
                 checked={autoRefresh}
                 onChange={() => setAutoRefresh(!autoRefresh)}
               />
+              {isDirector && (
+              <>
+                <hr />
+
+            <ToggleSwitch
+              label="AI Director Assistant"
+              description="Enable AI-powered recommendations and university intelligence"
+              checked={aiAssistant}
+              onChange={() => setAiAssistant(!aiAssistant)}
+            />
+          </>
+        )}
                         
          </div>
         </div>
@@ -523,7 +547,7 @@ const deleteAllSubmissions = async () => {
           />
 
           <input
-            type="email"
+            type="number"
             value={user.pfNumber || ""}
             placeholder="PF Number"
             onChange={(e) =>
@@ -554,62 +578,58 @@ const deleteAllSubmissions = async () => {
         <div className="flex justify-end gap-3 mt-6">
 
           <button
-            onClick={() =>
-              setShowProfileModal(false)
-            }
-            className="px-5 py-2 border rounded-xl"
-          >
-            Cancel
+            onClick={() => setShowProfileModal(false)}
+            className="px-5 py-2 border rounded-xl" >
+            Cancel 
           </button>
-          <button
-                  onClick={async () => {
-        try {
-          const token = getCurrentToken();
+          <button onClick={async () => {
+                try {
+                  const token = getCurrentToken();
 
-          const response = await fetch(
-            "https://aor-q19z.onrender.com/api/users/profile",
-            {
-              method: "PUT",
-              headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-              },
-              body: JSON.stringify({
-                name: user.name,
-                pfNumber: user.pfNumber,
-              }),
-            }
-          );
+                  const response = await fetch(
+                    "https://aor-q19z.onrender.com/api/users/profile",
+                    {
+                      method: "PUT",
+                      headers: {
+                        "Content-Type": "application/json",
+                        Authorization: `Bearer ${token}`,
+                      },
+                      body: JSON.stringify({
+                        name: user.name,
+                        pfNumber: user.pfNumber,
+                      }),
+                    }
+                  );
 
-          const data = await response.json();
+                  const data = await response.json();
 
-          if (!response.ok) {
-            alert(data.message);
-            return;
-          }
+                if (!response.ok) {
+                  alert(data.message);
+                  return;
+                }
 
-          // Update localStorage with fresh user from MongoDB
-          localStorage.setItem(
-            "user",
-            JSON.stringify(data.user)
-          );
+                // Update localStorage with fresh user from MongoDB
+                localStorage.setItem(
+                  "user",
+                  JSON.stringify(data.user)
+                );
 
-          // Update React state
-          setUser(data.user);
+                // Update React state
+                setUser(data.user);
 
-         await successAlert("Profile updated successfully!");
+              await successAlert("Profile updated successfully!");
 
-          setShowProfileModal(false);
+                setShowProfileModal(false);
 
-        } catch (err) {
-          console.error(err);
-          alert("Unable to update profile.");
-        }
-      }}
+              } 
+              catch (err) {
+                console.error(err);
+                alert("Unable to update profile.");
+              }}}
             className="btn btn-save px-5 py-2 rounded-xl"
           >
             Save
-          </button>
+        </button>
 
         </div>
       </div>

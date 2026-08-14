@@ -8,9 +8,9 @@ import { successAlert, confirmAlert } from '../utils/alerts';
 import { getCurrentUser, getCurrentToken } from '../utils/session';
 const AorForm = () => {
   const initialFormData = {
-    session: '', semester: '', appointment: ' ', 
-    lastName: '', firstName: '', middleInitial: '', pfNumber: '', 
-    school: '', department: '', position: '', phone: '', 
+    session: '', semester: '', appointment: '',
+    lastName: '', firstName: '', middleInitial: '', pfNumber: '',
+    school: '', department: '', position: '', phone: '',
     salaryGrade: '', teachingCredit: '', leave: '', lecturerSignature: ''
   };
   const user = getCurrentUser();
@@ -227,22 +227,32 @@ useEffect(() => {
 
   const validateForm = () => {
     setErrorMessage("");
-    const { lastName, firstName, appointment, pfNumber, school, department, phone, salaryGrade , lecturerSignature } = formData;
+    const {
+      lastName,
+      firstName,
+      appointment,
+      pfNumber,
+      school,
+      department,
+      phone,
+      salaryGrade,
+      lecturerSignature,
+    } = formData;
 
-    if (!lastName || !firstName || !pfNumber) {
-      setErrorMessage("Please fill in your Last Name, First Name, and PF Number.");
+    if (!String(lastName).trim() || !String(firstName).trim() || !String(appointment).trim()) {
+      setErrorMessage("Please fill in your Last Name, First Name, and appointment.");
       return false;
     }
-    if (!school || !department) {
+    if (!String(school).trim() || !String(department).trim()) {
       setErrorMessage("Please select your School and Department.");
       return false;
     }
-    if (!phone || !salaryGrade || !appointment) {
-      setErrorMessage("Please provide your Staff Phone Number, salary grade, and appointment type.");
+    if (!String(phone).trim() || !String(salaryGrade).trim() || !String(pfNumber).trim()) {
+      setErrorMessage("Please provide your Staff Phone Number, salary grade, and PF number.");
       return false;
     }
-    if (!lecturerSignature || lecturerSignature.trim() === "") {
-      setErrorMessage('please provide your name as e signature');
+    if (!String(lecturerSignature).trim()) {
+      setErrorMessage('Please provide your name as e-signature.');
       return false;
     }
     return true;

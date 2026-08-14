@@ -57,10 +57,10 @@ sessionStorage.setItem(
   );
 
   // First Login temporary disabled for the sake of testing, but should be enabled in production
-  // if (data.user.firstLogin) {
-  //   navigate("/changePassword");
-  //   return;
-  // }
+  if (data.user.firstLogin) {
+    navigate("/changePassword");
+    return;
+  }
 
   navigate("/lecturer");
 }

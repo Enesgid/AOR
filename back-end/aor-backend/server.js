@@ -11,10 +11,12 @@ const Notification =require("./models/Notification")
 const app = express();
 const Settings = require("./models/Settings");
 const schoolDepartments = require("./models/schoolDepartments");
+const aiRoutes = require('./routes/aiRoutes');
 
 // this prevent backdoor access to the API and only allows .
 app.use(cors()); 
 app.use(express.json()); 
+app.use('/api/ai', aiRoutes);
 mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/aor_database')
   .then(() => console.log('✅ MongoDB Successfully Connected!'))
   .catch((err) => console.error('❌ MongoDB Connection Error:', err));

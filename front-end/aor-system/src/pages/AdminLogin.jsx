@@ -59,10 +59,10 @@ sessionStorage.setItem(
     );
 
     // First login setup temporary disabled for the sake of testing, but should be enabled in production
-    // if (data.user.firstLogin) {
-    //     navigate("/changePassword");
-    //     return;
-    // }
+    if (data.user.firstLogin) {
+        navigate("/changePassword");
+        return;
+    }
 
     switch (data.user.role) {
         case "HOD":

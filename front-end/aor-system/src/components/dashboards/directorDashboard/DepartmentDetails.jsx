@@ -16,6 +16,14 @@ const DepartmentDetails = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const normalizeText = (value = "") =>
+      String(value)
+        .toLowerCase()
+        .trim()
+        .replace(/[-_/]+/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+
     const fetchLiveDepartmentData = async () => {
       try {
         const token = getCurrentToken();
@@ -25,17 +33,14 @@ const DepartmentDetails = () => {
           },
         });
         const submissions = await response.json();
-        // 1. FILTER: Isolate submissions belonging ONLY to this school AND this department
         const matchingSubmissions = submissions.filter((sub) => {
           const subSchool = sub.lecturerDetails?.school || "";
           const subDept = sub.lecturerDetails?.department || "";
-          
-          // Match URL format parameters cleanly (handling slug conversion back to text spaces)
-          const cleanParamDept = department ? department.toLowerCase().replace(/-/g, " ") : "";
-          
+          const cleanParamDept = normalizeText(department);
+
           return (
-            subSchool.toLowerCase() === school?.toLowerCase() &&
-            subDept.toLowerCase() === cleanParamDept
+            normalizeText(subSchool) === normalizeText(school) &&
+            normalizeText(subDept) === cleanParamDept
           );
         });
 
@@ -67,7 +72,7 @@ const DepartmentDetails = () => {
             sub.lecturerDetails?.firstName,
             sub.lecturerDetails?.middleInitial,
             sub.lecturerDetails?.lastName,].filter(Boolean).join(" "),
-            rank: sub.lecturerDetails?.position || "Unekwu",
+            rank: sub.lecturerDetails?.position || " ",
             appointment: sub.lecturerDetails?.appointment || "",
             teaching: Math.round(teachingScore),
             admin: Math.round(adminScore),
