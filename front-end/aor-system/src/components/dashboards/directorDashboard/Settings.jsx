@@ -15,6 +15,24 @@ const Settings = () => {
     const [showProfileModal ,setShowProfileModal] =useState(false)
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
+    const persistCurrentUser = (updatedUser) => {
+      const portal = sessionStorage.getItem("currentPortal");
+      const nextUser = {
+        ...(getCurrentUser() || {}),
+        ...(updatedUser || {}),
+      };
+
+      if (portal === "admin") {
+        localStorage.setItem("adminUser", JSON.stringify(nextUser));
+      } else if (portal === "lecturer") {
+        localStorage.setItem("lecturerUser", JSON.stringify(nextUser));
+      }
+
+      localStorage.setItem("loggedInName", nextUser.name || "");
+      localStorage.setItem("loggedInPF", nextUser.pfNumber || "");
+      setUser(nextUser);
+    };
+
 const [deleteText, setDeleteText] = useState("");
     const [user, setUser] = useState(() => {
    return (
@@ -163,6 +181,7 @@ const saveInstitutionSettings = async () => {
       return;
     }
     setSettings(data.settings);
+    window.dispatchEvent(new Event('settings-updated'));
     successAlert("Institution settings updated successfully.");
 
   } catch (error) {
@@ -561,15 +580,9 @@ const deleteAllSubmissions = async () => {
 
           <input
             type="text"
-            readOnly ={true}
+            readOnly={true}
             value={user.role || ""}
             placeholder="Role"
-            onChange={(e) =>
-              setProfile({
-                ...profile,
-                position: e.target.value,
-              })
-            }
             className="w-full border rounded-xl px-4 py-3"
           />
 
@@ -585,6 +598,15 @@ const deleteAllSubmissions = async () => {
           <button onClick={async () => {
                 try {
                   const token = getCurrentToken();
+                  const payload = {
+                    name: String(user.name || "").trim(),
+                    pfNumber: String(user.pfNumber || "").trim().toUpperCase(),
+                  };
+
+                  if (!payload.name || !payload.pfNumber) {
+                    alert("Name and PF Number are required.");
+                    return;
+                  }
 
                   const response = await fetch(
                     "https://aor-q19z.onrender.com/api/users/profile",
@@ -594,38 +616,25 @@ const deleteAllSubmissions = async () => {
                         "Content-Type": "application/json",
                         Authorization: `Bearer ${token}`,
                       },
-                      body: JSON.stringify({
-                        name: user.name,
-                        pfNumber: user.pfNumber,
-                      }),
+                      body: JSON.stringify(payload),
                     }
                   );
 
                   const data = await response.json();
 
-                if (!response.ok) {
-                  alert(data.message);
-                  return;
+                  if (!response.ok) {
+                    alert(data.message || "Unable to update profile.");
+                    return;
+                  }
+
+                  persistCurrentUser(data.user);
+                  await successAlert("Profile updated successfully!");
+                  setShowProfileModal(false);
+                } catch (err) {
+                  console.error(err);
+                  alert("Unable to update profile.");
                 }
-
-                // Update localStorage with fresh user from MongoDB
-                localStorage.setItem(
-                  "user",
-                  JSON.stringify(data.user)
-                );
-
-                // Update React state
-                setUser(data.user);
-
-              await successAlert("Profile updated successfully!");
-
-                setShowProfileModal(false);
-
-              } 
-              catch (err) {
-                console.error(err);
-                alert("Unable to update profile.");
-              }}}
+              }}
             className="btn btn-save px-5 py-2 rounded-xl"
           >
             Save

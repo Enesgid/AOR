@@ -1,9 +1,10 @@
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
 export const exportDashboardExcel = async (
-submissions,
-schoolsData,
-insights
+  submissions,
+  schoolsData,
+  insights,
+  session = ''
 ) => {
 const workbook = new ExcelJS.Workbook();
 
@@ -116,7 +117,7 @@ sheet.addRow([
 
 sheet.addRow([
   "Session:",
-  "2025/2026",
+  session || "",
 ]);
 
 sheet.addRow([

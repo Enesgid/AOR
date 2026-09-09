@@ -8,6 +8,9 @@ const DashboardHeader = ({
   setSearchTerm = () => {},
   onExcelExport,
   onPdfExport,
+  sessions = [],
+  selectedSession,
+  setSelectedSession = () => {},
 }) => {
   return (
     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-8 p-4">
@@ -36,6 +39,9 @@ const DashboardHeader = ({
 {showExport && (<ExportDropdown
   onExcelExport={onExcelExport}
   onPdfExport={onPdfExport}
+  sessions={sessions}
+  selectedSession={selectedSession}
+  setSelectedSession={setSelectedSession}
 />
 )}
         </div>

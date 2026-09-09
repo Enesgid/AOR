@@ -42,9 +42,34 @@ const buildFallbackRecommendation = (universityData, reason = "AI service unavai
   ],
 });
 
+const MODEL_NAME = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 1500;
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 const ai = new GoogleGenAI({
-apiKey: process.env.GEMINI_API_KEY,
+  apiKey: process.env.GEMINI_API_KEY,
 });
+
+const extractJsonFromText = (text) => {
+  if (!text) return null;
+
+  let cleaned = text
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "")
+    .trim();
+
+  const firstBrace = cleaned.indexOf("{");
+  const lastBrace = cleaned.lastIndexOf("}");
+
+  if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+    cleaned = cleaned.slice(firstBrace, lastBrace + 1);
+  }
+
+  return cleaned;
+};
 
 const generateDirectorAdvice = async (
 universityData
@@ -104,7 +129,7 @@ Use exactly this structure:
 {
 "priority": "High",
 "action": "Specific action required",
-"reason": "Why this should be prioritised"
+"reason": "Why this should be prioritised",
 "destination": "approvals"
 }
 ]
@@ -129,36 +154,54 @@ Rules:
     `;
 
 try {
-const response =
-await ai.models.generateContent({
-model: "gemini-3.6-flash",
-contents: prompt,
-});
+  let lastError;
 
-const text =
-  response.text?.trim();
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt += 1) {
+    try {
+      const response = await ai.models.generateContent({
+        model: MODEL_NAME,
+        contents: [{
+          role: "user",
+          parts: [{ text: prompt }],
+        }],
+      });
 
-if (!text) {
-  throw new Error(
-    "Gemini returned an empty response."
-  );
-}
+      const text = response?.text?.trim();
 
+      if (!text) {
+        throw new Error("Gemini returned an empty response.");
+      }
 
-const cleanedText = text
-  .replace(/^```json\s*/i, "")
-  .replace(/^```\s*/i, "")
-  .replace(/\s*```$/i, "")
-  .trim();
+      const cleanedText = extractJsonFromText(text);
 
-const recommendation =
-  JSON.parse(cleanedText);
+      if (!cleanedText) {
+        throw new Error("Gemini response did not contain valid JSON.");
+      }
 
-return recommendation;
+      const recommendation = JSON.parse(cleanedText);
 
+      if (!recommendation || typeof recommendation !== "object") {
+        throw new Error("Gemini returned an invalid recommendation payload.");
+      }
 
-}
- catch (error) {
+      return recommendation;
+    } catch (error) {
+      lastError = error;
+
+      const status = error?.status || error?.error?.status || error?.code;
+      const isTransient = [429, 500, 503].includes(Number(status)) || /rate limit|high demand|temporar|unavailable|timeout|429|503/i.test(error?.message || "");
+
+      if (!isTransient || attempt >= MAX_RETRIES) {
+        throw error;
+      }
+
+      console.warn(`Gemini transient failure (${status || "unknown"}); retrying ${attempt}/${MAX_RETRIES}...`);
+      await sleep(RETRY_DELAY_MS * attempt);
+    }
+  }
+
+  throw lastError;
+} catch (error) {
   const reason = error?.message || "unknown AI provider error";
   console.error("Gemini Error:", reason);
 

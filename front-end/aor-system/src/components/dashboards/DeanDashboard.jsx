@@ -15,9 +15,47 @@ const DeanDashboard = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [settings, setSettings] = useState({ submissionDeadline: "" });
+
   useEffect(() => {
+    fetchSettings();
     fetchSubmissions();
+
+    const handleSettingsUpdate = () => {
+      fetchSettings();
+    };
+
+    window.addEventListener('settings-updated', handleSettingsUpdate);
+
+    return () => {
+      window.removeEventListener('settings-updated', handleSettingsUpdate);
+    };
   }, []);
+
+  const fetchSettings = async () => {
+    try {
+      const response = await fetch('https://aor-q19z.onrender.com/api/settings');
+      const data = await response.json();
+      setSettings({
+        submissionDeadline: data?.submissionDeadline || "",
+      });
+    } catch (error) {
+      console.error('Error fetching settings:', error);
+    }
+  };
+
+  const formatDeadline = (value) => {
+    if (!value) return 'Not set';
+
+    const parsedDate = new Date(value);
+    if (Number.isNaN(parsedDate.getTime())) return value;
+
+    return parsedDate.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
 
  
 const fetchSubmissions = async () => {
@@ -183,6 +221,32 @@ const signatureName = result.value;
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
           />
+        </div>
+
+        <div className="mb-6">
+          <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center text-xl">
+                  📅
+                </div>
+                <div>
+                  <p className="text-xs uppercase tracking-wide font-semibold text-gray-500">
+                    Submission Deadline
+                  </p>
+                  <h3 className="mt-1 text-2xl font-bold text-gray-900">
+                    {formatDeadline(settings.submissionDeadline)}
+                  </h3>
+                </div>
+              </div>
+              <span className="px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 text-xs font-semibold uppercase tracking-wide">
+                Current
+              </span>
+            </div>
+            <p className="mt-3 text-sm text-gray-600">
+              All dean validation work should be completed before this date.
+            </p>
+          </div>
         </div>
         {/* MAIN TABLE */}
         <div className="grid grid-cols-1 gap-6 mb-6 overflow-hidden">

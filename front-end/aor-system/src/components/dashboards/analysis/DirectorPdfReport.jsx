@@ -9,7 +9,9 @@ const DirectorPdfReport = forwardRef(({
     submissions,
     pieChartData,
     schoolData,
-    lineData,},
+    lineData,
+    session = '',
+  },
 ref
 ) => {
   const stats = getDashboardStats(submissions)
@@ -31,6 +33,10 @@ Assignment of Responsibility System
 <h3 className="text-lg text-center mb-8">
 Director Analytics Report
 </h3>
+
+{session && (
+  <p className="text-center text-sm text-gray-600 mb-4">Session: {session}</p>
+)}
 
 <div className="grid grid-cols-5 gap-4 mb-8">
   {stats.map((item, index) => (

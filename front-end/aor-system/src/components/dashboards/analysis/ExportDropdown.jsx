@@ -4,9 +4,13 @@ import { Download, ChevronDown, FileSpreadsheet, FileText } from "lucide-react";
 const ExportDropdown = ({
   onExcelExport,
   onPdfExport,
+  sessions = [],
+  selectedSession,
+  setSelectedSession = () => {},
 }) => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const [localSession, setLocalSession] = useState(selectedSession || "");
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -29,6 +33,10 @@ const ExportDropdown = ({
         handleClickOutside
       );
   }, []);
+
+  useEffect(() => {
+    setLocalSession(selectedSession || "");
+  }, [selectedSession]);
 
   return (
     <div
@@ -69,45 +77,48 @@ const ExportDropdown = ({
             overflow-hidden
           "
         >
-          <button
-            onClick={() => {
-              setOpen(false);
-              onExcelExport();
-            }}
-            className="
-              w-full
-              flex
-              items-center
-              gap-4
-              px-4
-              py-3
-              text-left
-              hover:bg-gray-100
-            "
-          >
-            <FileSpreadsheet size={18} />
-            Download Excel
-          </button>
+          <div className="px-3 py-2 bg-white">
+            <label className="text-xs text-gray-500">Select session</label>
+            <select
+              value={localSession}
+              onChange={(e) => {
+                setLocalSession(e.target.value);
+                setSelectedSession(e.target.value);
+              }}
+              className="w-full mt-2 p-2 border rounded"
+            >
+              <option value="">session</option>
+              <option value="2025/2026">2025/2026</option>
+              {sessions.map((s, i) => (
+                <option key={i} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+          <div className="border-t">
+            <button
+              onClick={() => {
+                setOpen(false);
+                onExcelExport();
+              }}
+              disabled={!localSession}
+              className={`w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-gray-100 ${!localSession ? 'opacity-60 cursor-not-allowed' : ''}`}
+            >
+              <FileSpreadsheet size={18} />
+              Download Excel
+            </button>
 
-          <button
-            onClick={() => {
-              setOpen(false);
-              onPdfExport();
-            }}
-            className="
-              w-full
-              flex
-              items-center
-              gap-3
-              px-4
-              py-3
-              text-left
-              hover:bg-gray-100
-            "
-          >
-            <FileText size={18} />
-            Download PDF Analysis
-          </button>
+            <button
+              onClick={() => {
+                setOpen(false);
+                onPdfExport();
+              }}
+              disabled={!localSession}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 ${!localSession ? 'opacity-60 cursor-not-allowed' : ''}`}
+            >
+              <FileText size={18} />
+              Download PDF Analysis
+            </button>
+          </div>
         </div>
       )}
     </div>

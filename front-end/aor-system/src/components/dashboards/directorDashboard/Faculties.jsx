@@ -21,6 +21,8 @@ const Faculties = () => {
   
   // States to hold the live processed data
   const [schoolsData, setSchoolsData] = useState([]);
+  const [submissions, setSubmissions] = useState([]);
+  const [totalLecturers, setTotalLecturers] = useState(0);
   const [insights, setInsights] = useState({
     topSchool: { Schools: "None", effort: 0 },
     averageEffort: "0.0",
@@ -32,16 +34,33 @@ const fetchSubmissionsData = async () => {
   try {
     const token = getCurrentToken();
 
-    const response = await fetch(
-      "https://aor-q19z.onrender.com/api/submissions",
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    const headers = {
+      Authorization: `Bearer ${token}`,
+    };
 
-    const data = await response.json();
+    const submissionsResponse = await fetch(
+      "https://aor-q19z.onrender.com/api/submissions",
+      { headers }
+    );
+    if (!submissionsResponse.ok) {
+      throw new Error("Unable to load school submissions.");
+    }
+
+    const data = await submissionsResponse.json();
+    setSubmissions(Array.isArray(data) ? data : []);
+
+    try {
+      const usersResponse = await fetch(
+        "https://aor-q19z.onrender.com/api/users/count",
+        { headers }
+      );
+      if (usersResponse.ok) {
+        const userCount = await usersResponse.json();
+        setTotalLecturers(Number(userCount.totalLecturers) || 0);
+      }
+    } catch (countError) {
+      console.warn("Lecturer count unavailable; school submissions will still be shown.", countError);
+    }
 
     const processed =
       processDashboardAnalytics(data);
@@ -78,6 +97,14 @@ useEffect(() => {
   const totalFacultiesCount = schoolsData.length;
   const averageEffort = insights.averageEffort;
   const topSchool = insights.topSchool;
+  const submittedLecturers = new Set(
+    submissions
+      .map((submission) => submission.lecturerDetails?.pfNumber?.trim().toLowerCase())
+      .filter(Boolean)
+  ).size;
+  const submissionRate = totalLecturers > 0
+    ? ((submittedLecturers / totalLecturers) * 100).toFixed(1)
+    : "0.0";
   
   const handleApproveSchool = async (schoolName) => {
   try {
@@ -170,7 +197,7 @@ useEffect(() => {
               </div>
               <div>
                 <p className="text-gray-400 text-xs font-semibold uppercase tracking-wider">Submission Rate</p>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mt-0.5">82.4%</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-800 mt-0.5">{submissionRate}%</h1>
               </div>
             </div>
           </div>

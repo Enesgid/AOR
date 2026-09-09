@@ -4,9 +4,10 @@ const StatCard = ({
   subtitle,
   icon,
   iconBg,
+  onClick,
 }) => {
   return (
-    <div className="
+    <div className={`
       bg-white
       rounded-2xl
       border border-gray-200
@@ -14,7 +15,18 @@ const StatCard = ({
       hover:shadow-md
       transition-all duration-300
       p-5
-    ">
+      ${onClick ? "cursor-pointer hover:-translate-y-1" : ""}
+    `}
+      onClick={onClick}
+      onKeyDown={(event) => {
+        if (onClick && (event.key === "Enter" || event.key === " ")) {
+          event.preventDefault();
+          onClick();
+        }
+      }}
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+    >
       <div className="flex items-center gap-4">
         {/* Icon Container */}
         <div

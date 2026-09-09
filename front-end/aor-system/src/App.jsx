@@ -12,6 +12,8 @@ import Departments from './components/dashboards/directorDashboard/Departments';
 import DepartmentDetails from './components/dashboards/directorDashboard/DepartmentDetails';
 import Settings from './components/dashboards/directorDashboard/Settings';
 import Notifications from './components/dashboards/directorDashboard/notifications/Notifications';
+import Pending from './components/dashboards/directorDashboard/Pending';
+import Rejected from './components/dashboards/directorDashboard/Rejected';
 import ChangePassword from './pages/ChangePassword';
 import ForgotPassword from './pages/ForgotPassword';
 import ProtectedRoute from './components/protectedRoute';
@@ -89,6 +91,22 @@ function App() {
     element={
       <ProtectedRoute allowedRoles={["Director"]}>
         <Departments />
+      </ProtectedRoute>
+    }
+  />
+  <Route
+    path="/pending"
+    element={
+      <ProtectedRoute allowedRoles={["Director"]}>
+        <Pending />
+      </ProtectedRoute>
+    }
+  />
+  <Route
+    path="/rejected"
+    element={
+      <ProtectedRoute allowedRoles={["Director"]}>
+        <Rejected />
       </ProtectedRoute>
     }
   />

@@ -6,6 +6,10 @@ import {
   LogOut,
   X,
   Bell,
+  XSquare,
+  Clock,
+
+
 } from "lucide-react";
 import { confirmAlert } from "../../../utils/alerts";
 import {logoutCurrentPortal} from "../../../utils/logout";
@@ -41,6 +45,16 @@ const menuItems = {
       path: "/settings",
       icon: <Settings size={20} />,
     },
+    {
+      title: "rejected",
+      path: "/rejected",
+      icon: <XSquare size={20} />,
+    },
+    {
+      title: "pending",
+      path: "/pending",
+      icon: <Clock size={20} />,
+    }
   ],
 
   Dean: [
@@ -142,7 +156,7 @@ const handleLogout = async () => {
     bg-[var(--primary-color)]
     text-white
     flex flex-col justify-between
-    py-8 px-5 sm:pb-4
+    py-4 px-5 sm:pb-4
     transition-all duration-300 ease-in-out
 
     lg:left-0

@@ -45,9 +45,17 @@ const universityIntelligence = async (
 
     // No report exists yet,
     // so generate one
-    const intelligence =
-      await getUniversityIntelligence();
+    let intelligence;
 
+    try {
+      intelligence = await getUniversityIntelligence();
+    } catch (err) {
+      console.error('University Intelligence Error:', err);
+      intelligence = {
+        error: 'University data unavailable',
+        reason: err?.message || 'unknown',
+      };
+    }
 
     const aiRecommendation =
       await generateDirectorAdvice(
@@ -109,39 +117,38 @@ const refreshUniversityIntelligence =
       }
 
 
-      const intelligence =
-        await getUniversityIntelligence();
+      let intelligence;
 
+      try {
+        intelligence = await getUniversityIntelligence();
+      } catch (err) {
+        console.error('University Intelligence Error:', err);
+        intelligence = {
+          error: 'University data unavailable',
+          reason: err?.message || 'unknown',
+        };
+      }
 
-      const aiRecommendation =
-        await generateDirectorAdvice(
-          intelligence
-        );
+      const aiRecommendation = await generateDirectorAdvice(intelligence);
 
+      // Try to save the report; if saving fails, return the payload without crashing
+      let savedReport = null;
 
-      const savedReport =
-        await AIIntelligence.create({
+      try {
+        savedReport = await AIIntelligence.create({
           intelligence,
-
           aiRecommendation,
-
-          lastGenerated:
-            new Date(),
+          lastGenerated: new Date(),
         });
-
+      } catch (saveErr) {
+        console.error('AIIntelligence save failed:', saveErr);
+      }
 
       res.status(200).json({
-        message:
-          "University intelligence refreshed successfully.",
-
-        intelligence:
-          savedReport.intelligence,
-
-        aiRecommendation:
-          savedReport.aiRecommendation,
-
-        generatedAt:
-          savedReport.lastGenerated,
+        message: 'University intelligence refreshed successfully.',
+        intelligence: savedReport ? savedReport.intelligence : intelligence,
+        aiRecommendation: savedReport ? savedReport.aiRecommendation : aiRecommendation,
+        generatedAt: savedReport ? savedReport.lastGenerated : new Date(),
       });
 
   //   } catch (error) {

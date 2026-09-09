@@ -1,5 +1,5 @@
 import { useState, useEffect,useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Menu, ArrowRight } from "lucide-react";
 import { processDashboardAnalytics } from "../../utils/dashboardAnalytics.jsx";
 import getPieChartData from "./analysis/dashboardAnalytics.jsx";
@@ -19,6 +19,7 @@ import { getCurrentToken, getCurrentUser } from "../../utils/session";
 import DirectorPdfReport from "./analysis/DirectorPdfReport.jsx";
 
 const DirectorDashboard = () => {
+  const navigate = useNavigate();
   const currentUser = getCurrentUser();
 const isDirector = currentUser?.role === "Director";
 const [aiAssistant, setAiAssistant] = useState(
@@ -29,14 +30,17 @@ const [aiAssistant, setAiAssistant] = useState(
 );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [submissions, setSubmissions] = useState([]);
+    const [sessions, setSessions] = useState([]);
+    const [selectedSession, setSelectedSession] = useState('');
   const [activeChart, setActiveChart] = useState(null);
   const reportRef = useRef(null);
   const handleExcelExport = () => {
-  exportDashboardExcel(
-    submissions,
-    schoolsData,
-    insights
-  );
+    exportDashboardExcel(
+      submissions,
+      schoolsData,
+      insights,
+      selectedSession
+    );
 };
 const [autoRefresh, setAutoRefresh] = useState(
   JSON.parse(localStorage.getItem("autoRefresh")) ?? false
@@ -57,20 +61,21 @@ useEffect(() => {
     );
 }, []);
 const handlePdfExport = () => {
-  exportDashboardPDF(reportRef);
+  exportDashboardPDF(reportRef, selectedSession);
 };
 
  const fetchSubmissions = async () => {
   try {
     const token = getCurrentToken();
-    const response = await fetch(
-      "https://aor-q19z.onrender.com/api/submissions",
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
+    let url = "https://aor-q19z.onrender.com/api/submissions";
+    const params = new URLSearchParams();
+    if (selectedSession) params.append('session', selectedSession);
+    const query = params.toString();
+    if (query) url += `?${query}`;
+
+    const response = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
     const data = await response.json();
 
@@ -81,8 +86,51 @@ const handlePdfExport = () => {
   }
 };
 useEffect(() => {
-  fetchSubmissions();
+  fetchSessions();
+  // fetchSubmissions will run when selectedSession is set by fetchSessions (see effect below)
 }, []);
+
+// refetch submissions whenever selectedSession changes
+useEffect(() => {
+  fetchSubmissions();
+}, [selectedSession]);
+
+const fetchSessions = async () => {
+  try {
+    const token = getCurrentToken();
+    const res = await fetch('https://aor-q19z.onrender.com/api/submissions/sessions', {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const data = await res.json();
+    // If settings returned a currentSession, generate a contiguous range
+    // starting at 2025/2026 up to the currentSession (inclusive).
+    const buildSessionRangeTo = (endSession, startYear = 2025) => {
+      if (!endSession) return [];
+      const m = endSession.match(/(\d{4})\/(\d{4})/);
+      if (!m) return [];
+      const endYear = parseInt(m[1], 10);
+      const arr = [];
+      for (let y = startYear; y <= endYear; y++) {
+        arr.push(`${y}/${y + 1}`);
+      }
+      return arr;
+    };
+
+    if (data.currentSession) {
+      const range = buildSessionRangeTo(data.currentSession, 2025);
+      setSessions(range);
+      setSelectedSession(data.currentSession);
+    } else if (data.sessions && data.sessions.length > 0) {
+      setSessions(data.sessions);
+      setSelectedSession(data.sessions[0]);
+    } else {
+      setSessions([]);
+      setSelectedSession('');
+    }
+  } catch (err) {
+    console.error('Failed to load sessions', err);
+  }
+};
 useEffect(() => {
   if (!autoRefresh) return;
 
@@ -166,6 +214,9 @@ useEffect(() => {
             subtitle="Monitor overall institutional performance"  
             onExcelExport={handleExcelExport}
             onPdfExport={handlePdfExport}
+            sessions={sessions}
+            selectedSession={selectedSession}
+            setSelectedSession={setSelectedSession}
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
           />
@@ -181,6 +232,13 @@ useEffect(() => {
               subtitle={item.subtitle}
               icon={item.icon}
               iconBg={item.iconBg}
+              onClick={
+                item.title === "Pending"
+                  ? () => navigate("/pending")
+                  : item.title === "Rejected"
+                    ? () => navigate("/rejected")
+                    : undefined
+              }
             />
           ))}
         </div>
@@ -277,7 +335,18 @@ useEffect(() => {
 
             <div className="space-y-4">
               {/* HOD */}
-              <div className="border border-gray-100 rounded-xl p-4">
+              <div
+                className="cursor-pointer rounded-xl border border-gray-100 p-4 transition hover:-translate-y-1 hover:shadow-md"
+                onClick={() => navigate("/pending?status=Pending%20HOD")}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    navigate("/pending?status=Pending%20HOD");
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+              >
                 <h3 className="text-3xl font-bold text-yellow-500">{pendingHod}</h3>
                 <p className="text-sm text-gray-500 mt-1">Pending HOD Approval</p>
                 <div className="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -286,7 +355,18 @@ useEffect(() => {
               </div>
 
               {/* Dean */}
-              <div className="border border-gray-100 rounded-xl p-4">
+              <div
+                className="cursor-pointer rounded-xl border border-gray-100 p-4 transition hover:-translate-y-1 hover:shadow-md"
+                onClick={() => navigate("/pending?status=Pending%20Dean")}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    navigate("/pending?status=Pending%20Dean");
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+              >
                 <h3 className="text-3xl font-bold text-blue-600">{pendingDean}</h3>
                 <p className="text-sm text-gray-500 mt-1">Pending Dean Approval</p>
                 <div className="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -295,7 +375,18 @@ useEffect(() => {
               </div>
 
               {/* Director */}
-              <div className="border border-gray-100 rounded-xl p-4">
+              <div
+                className="cursor-pointer rounded-xl border border-gray-100 p-4 transition hover:-translate-y-1 hover:shadow-md"
+                onClick={() => navigate("/pending?status=Pending%20Director")}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    navigate("/pending?status=Pending%20Director");
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+              >
                 <h3 className="text-3xl font-bold text-red-500">{pendingDirector}</h3>
                 <p className="text-sm text-gray-500 mt-1">Pending Director Approval</p>
                 <div className="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -344,6 +435,7 @@ useEffect(() => {
               pieData={pieChartData}
               schoolData={schoolsData}
               lineData={lineData}
+              session={selectedSession}
           />
 
           </div>

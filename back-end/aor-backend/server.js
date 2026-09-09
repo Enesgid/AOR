@@ -86,7 +86,7 @@ app.post('/api/login', async (req, res) => {
 
     const user = await User.findOne({ pfNumber });
     if (!user) {
-      return res.status(404).json({ message: "User not found. Please check your PF Number." });
+      return res.status(404).json({ message: "User not found" });
     }
 
     if (user.role !== role) {
@@ -95,7 +95,7 @@ app.post('/api/login', async (req, res) => {
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(400).json({ message: "Invalid credentials. Incorrect password." });
+      return res.status(400).json({ message: " Incorrect password or PF Number. " });
     }
 
     // generrate a json web token (JWT) that includes the user's ID, PF number, role, name, department, and school. This token will be used to authenticate future requests to protected routes.
@@ -138,6 +138,40 @@ app.get('/api/submissions',verifyToken, async (req, res) => {
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch submissions' });
   }
+});
+
+// Get distinct sessions (grouped) with most recent activity
+app.get('/api/submissions/sessions', verifyToken, async (req, res) => {
+  try {
+    // Aggregate sessions and find the most recent submission date per session
+    const sessions = await Submission.aggregate([
+      { $match: { 'lecturerDetails.session': { $exists: true, $ne: '' } } },
+      { $group: { _id: '$lecturerDetails.session', lastSub: { $max: '$createdAt' } } },
+      { $sort: { lastSub: -1 } },
+      { $project: { session: '$_id', _id: 0, lastSub: 1 } }
+    ]);
+
+    const settings = await Settings.findOne();
+
+    res.json({
+      currentSession: settings?.academicSession || null,
+      sessions: sessions.map(s => s.session)
+    });
+  } catch (error) {
+    console.error('Error fetching sessions:', error);
+    res.status(500).json({ message: 'Unable to load sessions' });
+  }
+});
+
+// --- GET TOTAL LECTURER USERS (Schools submission rate) ---
+app.get('/api/users/count', verifyToken, async (req, res) => {
+  try {
+    const totalLecturers = await User.countDocuments({ role: 'Lecturer' });
+    res.json({ totalLecturers });
+  } catch (error) {
+    console.error('Error counting lecturer users:', error);
+    res.status(500).json({ error: 'Failed to count lecturer users' });
+  }
 });
 
 // --- GET SPECIFIC LECTURER SUBMISSIONS ---
@@ -187,27 +221,25 @@ app.get(
 );
 
 // --- SAVE A NEW FORM ---
-app.post('/api/submissions',verifyToken, async (req, res) => {
-  try {const newSubmission = new Submission(req.body);
-const savedSubmission = await newSubmission.save();
+app.get('/api/submissions',verifyToken, async (req, res) => {
+  try {
+    const filter = {};
+    // allow optional filtering by session and semester
+    if (req.query.session) {
+      filter['lecturerDetails.session'] = req.query.session;
+    }
+    if (req.query.semester) {
+      filter['lecturerDetails.semester'] = req.query.semester;
+    }
 
-await createNotification({
-    recipientRole: "HOD",
-    recipientDepartment:
-        savedSubmission.lecturerDetails.department,
-    title: "New Submission",
-    message: `${savedSubmission.lecturerDetails.firstName} ${savedSubmission.lecturerDetails.lastName} submitted a new AOR form.`,
-    type: "info",
-    link: "/hod",
-});
+    const submissions = await Submission.find(filter).sort({ createdAt: -1 });
+    res.json(submissions);
 
-res.status(201).json(savedSubmission);
-  } 
-catch (error) {
-    console.error("Error saving data:", error);
-    res.status(500).json({ error: 'Failed to save submission' });
-  }
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch submissions' });
+  }
 });
+  
 
 // Directors Approval Pipeline 
 app.patch(
@@ -328,27 +360,48 @@ if (updatedSubmission.status === "Approved") {
   }
 });
 
-app.put('/api/submissions/:id', verifyToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updatedSubmission = await Submission.findByIdAndUpdate(
-      id, 
-      req.body, 
-      { new: true } 
-    );
+app.post('/api/submissions',verifyToken, async (req, res) => {
+  try {
+    const incoming = req.body;
+    const pf = incoming?.lecturerDetails?.pfNumber;
+    const session = incoming?.lecturerDetails?.session;
+    const semester = incoming?.lecturerDetails?.semester;
 
-    if (!updatedSubmission) {
-      return res.status(404).json({ message: 'Submission not found' });
-    }
+    if (!pf) {
+      return res.status(400).json({ message: 'Missing lecturer PF number' });
+    }
 
-    res.status(200).json(updatedSubmission);
-  } catch (error) {
-    console.error("Error updating submission:", error);
-    res.status(500).json({ message: 'Server error while updating.' });
-  }
+    // Prevent duplicate submission for same lecturer + session + semester
+    const existing = await Submission.findOne({
+      'lecturerDetails.pfNumber': pf,
+      'lecturerDetails.session': session,
+      'lecturerDetails.semester': semester,
+    });
+
+    if (existing) {
+      return res.status(400).json({ message: 'A submission for this session and semester already exists for this lecturer.' });
+    }
+
+    const newSubmission = new Submission(incoming);
+    const savedSubmission = await newSubmission.save();
+
+    await createNotification({
+      recipientRole: "HOD",
+      recipientDepartment: savedSubmission.lecturerDetails.department,
+      title: "New Submission",
+      message: `${savedSubmission.lecturerDetails.firstName} ${savedSubmission.lecturerDetails.lastName} submitted a new AOR form.`,
+      type: "info",
+      link: "/hod",
+    });
+
+    res.status(201).json(savedSubmission);
+  } catch (error) {
+    console.error("Error saving data:", error);
+    res.status(500).json({ error: 'Failed to save submission' });
+  }
 });
 
-app.get("/api/notifications", verifyToken, async (req, res) => {
+app.get('/api/notifications', verifyToken, async (req, res) => {
   try {
     const { role, department, school, pfNumber } = req.user;
 
@@ -783,34 +836,66 @@ app.put(
   verifyToken,
   async (req, res) => {
     try {
-      const { name } = req.body;
+      const name = String(req.body.name || "").trim();
+      const pfNumber = String(req.body.pfNumber || "").trim().toUpperCase();
 
-      const updatedUser =
-        await User.findByIdAndUpdate(
-          req.user.id,
-          { name },
-          { new: true }
-        );
+      if (!name || !pfNumber) {
+        return res.status(400).json({
+          message: "Name and PF Number are required.",
+        });
+      }
 
-      if (!updatedUser) {
+      const currentUser = await User.findById(req.user.id);
+
+      if (!currentUser) {
         return res.status(404).json({
           message: "User not found",
         });
       }
 
+      const pfExists = await User.findOne({
+        pfNumber,
+        _id: { $ne: req.user.id },
+      });
+
+      if (pfExists) {
+        return res.status(409).json({
+          message: "This PF Number is already in use.",
+        });
+      }
+
+      currentUser.name = name;
+      currentUser.pfNumber = pfNumber;
+
+      await currentUser.save();
+
+      const token = jwt.sign(
+        {
+          id: currentUser._id,
+          name: currentUser.name,
+          pfNumber: currentUser.pfNumber,
+          role: currentUser.role,
+          department: currentUser.department,
+          school: currentUser.school,
+          firstLogin: currentUser.firstLogin,
+        },
+        "your_super_secret_key",
+        { expiresIn: "1d" }
+      );
+
       res.json({
         message: "Profile updated successfully",
+        token,
         user: {
-          name: updatedUser.name,
-          pfNumber: updatedUser.pfNumber,
-          role: updatedUser.role,
-          department:
-            updatedUser.department,
-          school: updatedUser.school,
+          name: currentUser.name,
+          pfNumber: currentUser.pfNumber,
+          role: currentUser.role,
+          department: currentUser.department,
+          school: currentUser.school,
+          firstLogin: currentUser.firstLogin,
         },
       });
-    } 
-    catch (error) {
+    } catch (error) {
       console.error(error);
 
       res.status(500).json({
@@ -818,7 +903,6 @@ app.put(
       });
     }
   }
-
 );
 app.get("/api/settings", async (req, res) => {
   try {

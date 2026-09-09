@@ -10,7 +10,7 @@ const schoolDepartments = {
   SIT: ['Logistics and Transport Technology','Entrepreneurship','Project Managemnet Technology'],
   SLS: ['Biochemistry', 'Forensic science', 'Microbiology','Plant Biology', 'Animal Biology', 'Public health'],
   SPS: ['Chemistry', 'Geography', 'Mathematics', 'Physics','Applied GeoPhysics', 'Geology', 'Statistics','Meterology','Industrial Mathematics'],
-  SSTE: ['Industrial and Technology Education', 'Science Education','Educational Technology','Library and Information Science'],
+  SSTE: ['Industrial and Technology Education', 'Science Education','Educational Technology','Library and Information Science','General Studies(GST)'],
   PGS: ['Postgraduate Schools'],
   SBMS:['Medicine and surgery', 'Human Anatomy','Human Physiology'],
   SAHS:['Nursing Science','Medical Laboratory Science'],
@@ -36,12 +36,12 @@ const LecturerInfo = ({ formData, handleChange }) => {
         </div>
         <div className="form-group">
           <label>Semester</label>
-          <input
-            type="text"
-            value={formData.semester}
-            readOnly
-            className="bg-gray-100 cursor-not-allowed"
-          />
+          <select name="semester" id="semester" value={formData.semester} onChange={handleChange}>
+            <option value="">Select semester</option>
+            <option>First Semester</option>
+            <option>Second Semester</option>
+          </select>
+          
         </div>
         <div className="form-group">
           <label htmlFor="label">Appointment</label>
@@ -175,7 +175,7 @@ const LecturerInfo = ({ formData, handleChange }) => {
           <select type="text" name="leave" value={formData.leave} onChange={handleChange} >
             <option value=" ">Select Leave of Absence</option>
             <option value="Study Leave">Study Leave</option>
-            <option value="Sabbatica">Sabbatical </option>
+            <option value="Sabbatical">Sabbatical </option>
             <option value="N/A">N/A</option>
           </select>
         </div>
