@@ -35,7 +35,7 @@ const HODDashboard = () => {
 
   const fetchSettings = async () => {
     try {
-      const response = await fetch('https://aor-q19z.onrender.com/api/settings');
+      const response = await fetch(`${API_BASE_URL}/api/settings`);
       const data = await response.json();
       setSettings({
         submissionDeadline: data?.submissionDeadline || "",
@@ -65,7 +65,7 @@ const fetchSubmissions = async () => {
       const user = getCurrentUser();
       const hodDepartment = user?.department; 
 
-      const response = await fetch('https://aor-q19z.onrender.com/api/submissions', {
+      const response = await fetch(`${API_BASE_URL}/api/submissions`, {
         headers: {
           'Authorization': `Bearer ${token}` 
         }
@@ -156,7 +156,7 @@ const signatureName = result.value;
     try {
       const token = getCurrentToken(); // Get the token from local storage
 
-      const response = await fetch(`https://aor-q19z.onrender.com/api/submissions/${id}/status`, {
+      const response = await fetch(`${API_BASE_URL}/api/submissions/${id}/status`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',

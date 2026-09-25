@@ -14,6 +14,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { getCurrentToken } from "../../../utils/session";
 import {Link} from "react-router-dom";
+import API_BASE_URL from "../../../config/api";
 
 const AIFloatingButton = () => {
   const buttonRef = useRef(null);
@@ -79,8 +80,8 @@ const AIFloatingButton = () => {
 
       const response = await fetch(
         forceRefresh
-  ? "https://aor-q19z.onrender.com/api/ai/refresh"
-  : "https://aor-q19z.onrender.com/api/ai/summary",
+  ? `${API_BASE_URL}/api/ai/refresh`
+  : `${API_BASE_URL}/api/ai/summary`,
         {
           method: forceRefresh ? "POST" : "GET",
 

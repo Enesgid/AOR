@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import DepartmentPerformanceChart from "./DepartmentPerformanceChart";
 import { getCurrentToken } from "../../../utils/session";
+import API_BASE_URL from "../../../config/api";
 
 const Departments = () => {
   const { school } = useParams();
@@ -21,7 +22,7 @@ const Departments = () => {
     const fetchLiveSubmissions = async () => {
       try {
         const token = getCurrentToken();
-        const response = await fetch("https://aor-q19z.onrender.com/api/submissions", {
+        const response = await fetch(`${API_BASE_URL}/api/submissions`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();

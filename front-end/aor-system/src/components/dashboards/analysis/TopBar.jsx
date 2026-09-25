@@ -4,6 +4,7 @@ import {
   ArrowLeftIcon,
 } from "lucide-react";
 import { getCurrentUser, getCurrentToken } from "../../../utils/session";
+import API_BASE_URL from "../../../config/api";
 import {useEffect, useState,} from "react";
 import { useNavigate } from "react-router-dom";
 const Topbar = ({ showBack = false }) => {
@@ -51,7 +52,7 @@ const fetchNotifications = async () => {
     const token = getCurrentToken();
 
     const response = await fetch(
-      "https://aor-q19z.onrender.com/api/notifications",
+      `${API_BASE_URL}/api/notifications`,
       {
         headers: {
           Authorization: `Bearer ${token}`,

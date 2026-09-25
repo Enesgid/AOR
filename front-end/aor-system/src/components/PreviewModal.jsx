@@ -220,7 +220,7 @@ const PreviewModal = ({ data, onClose ,onApprove ,onReject}) => {
                 <div style={{ borderBottom: '1px solid #000', marginBottom: '5px', minHeight: '24px' }}>
                 {lecturerDetails.lecturerSignature ? (
                   <span style={{ fontStyle: 'italic' }}>
-                    {lecturerDetails.lecturerSignature} - {lecturerDetails.lecturerSignatureDate ? new Date(lecturerDetails.lecturerSignatureDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : new Date().toLocaleDateString('en-GB')} (E-Signed)
+                    {lecturerDetails.lecturerSignature} - {lecturerDetails.lecturerSignatureDate ? new Date(lecturerDetails.lecturerSignatureDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : new Date().toLocaleDateString('en-GB',{ day: 'numeric', month: 'short', year: 'numeric' })} (E-Signed)
                   </span>
                 ) : (
                   '\u00A0'

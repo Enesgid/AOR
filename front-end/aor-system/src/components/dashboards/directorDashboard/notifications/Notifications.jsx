@@ -4,6 +4,7 @@ import Sidebar from "../../analysis/Sidebar";
 import DashboardHeader from "../../analysis/DashboardHeader";
 import Topbar from "../../analysis/TopBar";
 import { getCurrentToken } from "../../../../utils/session";
+import API_BASE_URL from "../../../../config/api";
 
 
 const Notifications = () => {
@@ -26,7 +27,7 @@ const fetchNotifications = async () => {
     const token = getCurrentToken();
 
     const response = await fetch(
-      "https://aor-q19z.onrender.com/api/notifications",
+      `${API_BASE_URL}/api/notifications`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -47,7 +48,7 @@ const markAllAsRead = async () => {
     const token = getCurrentToken();
 
     await fetch(
-      "https://aor-q19z.onrender.com/api/notifications/read-all",
+      `${API_BASE_URL}/api/notifications/read-all`,
       {
         method: "PATCH",
         headers: {
@@ -65,7 +66,7 @@ const clearAll = async () => {
     const token = getCurrentToken();
 
    await fetch(
-  "https://aor-q19z.onrender.com/api/notifications",
+  `${API_BASE_URL}/api/notifications`,
   {
     method: "DELETE",
     headers: {

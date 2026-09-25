@@ -5,6 +5,7 @@ import Sidebar from "../analysis/Sidebar";
 import Topbar from "../analysis/TopBar";
 import DashboardHeader from "../analysis/DashboardHeader";
 import { getCurrentToken } from "../../../utils/session";
+import API_BASE_URL from "../../../config/api";
 
 const DepartmentDetails = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -27,7 +28,7 @@ const DepartmentDetails = () => {
     const fetchLiveDepartmentData = async () => {
       try {
         const token = getCurrentToken();
-        const response = await fetch("https://aor-q19z.onrender.com/api/submissions", {
+        const response = await fetch(`${API_BASE_URL}/api/submissions`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },

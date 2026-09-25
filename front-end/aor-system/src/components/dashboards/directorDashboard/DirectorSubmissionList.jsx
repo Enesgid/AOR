@@ -5,8 +5,9 @@ import Sidebar from "../analysis/Sidebar";
 import Topbar from "../analysis/TopBar";
 import DashboardHeader from "../analysis/DashboardHeader";
 import { getCurrentToken } from "../../../utils/session";
+import API_BASE_URL from "../../../config/api";
 
-const SUBMISSIONS_URL = "https://aor-q19z.onrender.com/api/submissions";
+const SUBMISSIONS_URL = `${API_BASE_URL}/api/submissions`;
 
 const getLecturerName = (submission) => {
   const details = submission.lecturerDetails || {};

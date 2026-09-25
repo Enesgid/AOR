@@ -17,6 +17,7 @@ import { exportDashboardExcel } from "../../utils/ExportExcel.jsx";
 import { exportDashboardPDF } from "../../utils/ExportPdfAnalysis.jsx";
 import { getCurrentToken, getCurrentUser } from "../../utils/session";
 import DirectorPdfReport from "./analysis/DirectorPdfReport.jsx";
+import API_BASE_URL from "../../config/api";
 
 const DirectorDashboard = () => {
   const navigate = useNavigate();
@@ -70,7 +71,7 @@ const handlePdfExport = () => {
  const fetchSubmissions = async () => {
   try {
     const token = getCurrentToken();
-    let url = "https://aor-q19z.onrender.com/api/submissions";
+    let url = `${API_BASE_URL}/api/submissions`;
     const params = new URLSearchParams();
     if (selectedSession) params.append('session', selectedSession);
     const query = params.toString();
@@ -101,7 +102,7 @@ useEffect(() => {
 const fetchSessions = async () => {
   try {
     const token = getCurrentToken();
-    const res = await fetch('https://aor-q19z.onrender.com/api/submissions/sessions', {
+    const res = await fetch(`${API_BASE_URL}/api/submissions/sessions`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const data = await res.json();

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {successAlert, errorAlert} from "../utils/alerts";
+import API_BASE_URL from "../config/api";
 
 const ForgotPassword = () => {
   const [pfNumber, setPfNumber] = useState("");
@@ -16,7 +17,7 @@ const ForgotPassword = () => {
 
     try {
       const response = await fetch(
-        "https://aor-q19z.onrender.com/api/users/reset-password",
+        `${API_BASE_URL}/api/users/reset-password`,
         {
           method: "POST",
           headers: {

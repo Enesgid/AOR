@@ -6,6 +6,7 @@ import Certification from '../components/Certification';
 import PreviewModal from '../components/PreviewModal';
 import { successAlert, confirmAlert } from '../utils/alerts';
 import { getCurrentUser, getCurrentToken } from '../utils/session';
+import API_BASE_URL from '../config/api';
 const AorForm = () => {
   const initialFormData = {
     session: '', semester: '', appointment: '',
@@ -47,7 +48,7 @@ const fetchLecturerData = async () => {
 
   try {
     const response = await fetch(
-      `https://aor-q19z.onrender.com/api/submissions/track/${storedPf}`,
+      `${API_BASE_URL}/api/submissions/track/${storedPf}`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -169,7 +170,7 @@ useEffect(() => {
     const fetchInstitutionSettings = async () => {
     try {
       const response = await fetch(
-        "https://aor-q19z.onrender.com/api/settings"
+        `${API_BASE_URL}/api/settings`
       );
 
       const data = await response.json();
@@ -281,7 +282,7 @@ useEffect(() => {
     try {
       let response;
       if (submissionId) {
-        response = await fetch(`https://aor-q19z.onrender.com/api/submissions/${submissionId}`, {
+        response = await fetch(`${API_BASE_URL}/api/submissions/${submissionId}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' ,
             'Authorization': `Bearer ${token}`
@@ -289,7 +290,7 @@ useEffect(() => {
           body: JSON.stringify(payload)
         });
       } else {
-        response = await fetch('https://aor-q19z.onrender.com/api/submissions', {
+        response = await fetch(`${API_BASE_URL}/api/submissions`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' ,
             'Authorization': `Bearer ${token}`

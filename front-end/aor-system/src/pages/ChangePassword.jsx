@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Header from "../components/Header";
 import { confirmAlert, errorAlert, successAlert } from "../utils/alerts";
 import { getCurrentUser, getCurrentToken } from "../utils/session";
+import API_BASE_URL from "../config/api";
 
 const ChangePassword = () => {
   const navigate = useNavigate();
@@ -49,7 +50,7 @@ const ChangePassword = () => {
         getCurrentToken();
 
       const response = await fetch(
-        "https://aor-q19z.onrender.com/api/users/first-login",
+        `${API_BASE_URL}/api/users/first-login`,
         {
           method: "PUT",
           headers: {

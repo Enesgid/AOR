@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Header from '../components/Header';
+import API_BASE_URL from '../config/api';
 
 
 const AdminLogin = () => {
@@ -23,7 +24,7 @@ const AdminLogin = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('https://aor-q19z.onrender.com/api/login', {
+      const response = await fetch(`${API_BASE_URL}/api/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pfNumber: pfNumber.toUpperCase(), password, role })

@@ -14,6 +14,7 @@ import {
 
 import { useState, useEffect } from "react";
 import { errorAlert, successAlert } from "../../../utils/alerts.js";
+import API_BASE_URL from "../../../config/api";
 
 const Faculties = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -39,7 +40,7 @@ const fetchSubmissionsData = async () => {
     };
 
     const submissionsResponse = await fetch(
-      "https://aor-q19z.onrender.com/api/submissions",
+      `${API_BASE_URL}/api/submissions`,
       { headers }
     );
     if (!submissionsResponse.ok) {
@@ -51,7 +52,7 @@ const fetchSubmissionsData = async () => {
 
     try {
       const usersResponse = await fetch(
-        "https://aor-q19z.onrender.com/api/users/count",
+        `${API_BASE_URL}/api/users/count`,
         { headers }
       );
       if (usersResponse.ok) {
@@ -111,7 +112,7 @@ useEffect(() => {
     const token = getCurrentToken();
 
     const response = await fetch(
-      "https://aor-q19z.onrender.com/api/submissions/approve-school",
+      `${API_BASE_URL}/api/submissions/approve-school`,
       {
         method: "PATCH",
         headers: {

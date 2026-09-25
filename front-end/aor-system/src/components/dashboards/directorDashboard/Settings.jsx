@@ -6,6 +6,7 @@ import { Menu } from "lucide-react";
 import ToggleSwitch from "./SettingsToggle/ToggleSwitch";
 import { confirmAlert, errorAlert, successAlert } from "../../../utils/alerts";
 import { getCurrentUser, getCurrentToken } from "../../../utils/session";
+import API_BASE_URL from "../../../config/api";
 
 
 const Settings = () => {
@@ -144,7 +145,7 @@ useEffect(() => {
   const fetchSettings = async () => {
     try {
       const response = await fetch(
-        "https://aor-q19z.onrender.com/api/settings"
+        `${API_BASE_URL}/api/settings`
       );
 
       const data = await response.json();
@@ -164,7 +165,7 @@ const saveInstitutionSettings = async () => {
     const token = getCurrentToken();
 
     const response = await fetch(
-      "https://aor-q19z.onrender.com/api/settings",
+      `${API_BASE_URL}/api/settings`,
       {
         method: "PUT",
         headers: {
@@ -197,7 +198,7 @@ const deleteAllSubmissions = async () => {
     const token = getCurrentToken();
 
     const response = await fetch(
-      "https://aor-q19z.onrender.com/api/submissions/delete-all",
+      `${API_BASE_URL}/api/submissions/delete-all`,
       {
         method: "DELETE",
         headers: {
@@ -615,7 +616,7 @@ const deleteAllSubmissions = async () => {
                   }
 
                   const response = await fetch(
-                    "https://aor-q19z.onrender.com/api/users/profile",
+                    `${API_BASE_URL}/api/users/profile`,
                     {
                       method: "PUT",
                       headers: {
