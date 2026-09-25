@@ -20,6 +20,14 @@ status: {
   deanSignature: { type: String },
   directorSignature: { type: String },
   
+  // Dates for signatures so e-sign dates are persisted
+  lecturerSignatureDate: { type: Date },
+  hodSignatureDate: { type: Date },
+  deanSignatureDate: { type: Date },
+  directorSignatureDate: { type: Date },
+
+  // Totals and lifecycle timestamps
+  totalDesignatedInput: { type: Number },
   approvalDate: { type: Date },
   submittedAt: { type: Date }
 }, { timestamps: true });

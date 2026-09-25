@@ -220,9 +220,7 @@ const PreviewModal = ({ data, onClose ,onApprove ,onReject}) => {
                 <div style={{ borderBottom: '1px solid #000', marginBottom: '5px', minHeight: '24px' }}>
                 {lecturerDetails.lecturerSignature ? (
                   <span style={{ fontStyle: 'italic' }}>
-                    {lecturerDetails.lecturerSignature} - {new Date().toLocaleDateString('en-GB', {
-                      day: 'numeric', month: 'short', year: 'numeric'
-                    })} (E-Signed)
+                    {lecturerDetails.lecturerSignature} - {lecturerDetails.lecturerSignatureDate ? new Date(lecturerDetails.lecturerSignatureDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : new Date().toLocaleDateString('en-GB')} (E-Signed)
                   </span>
                 ) : (
                   '\u00A0'
@@ -236,7 +234,7 @@ const PreviewModal = ({ data, onClose ,onApprove ,onReject}) => {
                 <div style={{ borderBottom: '1px solid #000', marginBottom: '5px', minHeight: '24px' }}>
                   {data.hodSignature ? (
                     <span style={{fontStyle: 'italic' }}>
-                      {data.hodSignature} (E-Signed)
+                      {data.hodSignature} - {data.hodSignatureDate ? new Date(data.hodSignatureDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''} (E-Signed)
                     </span>
                   ) : (
                     '\u00A0'
@@ -249,7 +247,7 @@ const PreviewModal = ({ data, onClose ,onApprove ,onReject}) => {
               <div>
               <div style={{ borderBottom: '1px solid #000', marginBottom: '5px', minHeight: '24px' }}>
                 {data.deanSignature ? (
-                  <span style={{ fontStyle: 'italic' }}> {data.deanSignature} (E-Signed)</span>
+                  <span style={{ fontStyle: 'italic' }}> {data.deanSignature} - {data.deanSignatureDate ? new Date(data.deanSignatureDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''} (E-Signed)</span>
                 ) : (
                   '\u00A0'
                 )}

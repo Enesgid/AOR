@@ -11,7 +11,7 @@ const AorForm = () => {
     session: '', semester: '', appointment: '',
     lastName: '', firstName: '', middleInitial: '', pfNumber: '',
     school: '', department: '', position: '', phone: '',
-    salaryGrade: '', teachingCredit: '', leave: '', lecturerSignature: ''
+    salaryGrade: '', teachingCredit: '', leave: '', lecturerSignature: '', lecturerSignatureDate: null
   };
   const user = getCurrentUser();
 const draftKey = `aorDraft_${user?.pfNumber}`;
@@ -196,7 +196,12 @@ useEffect(() => {
     if (name === 'school') {
       setFormData((prev) => ({ ...prev, school: value, department: '' }));
     } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
+      // capture lecturer signature date when name is entered
+      if (name === 'lecturerSignature') {
+        setFormData((prev) => ({ ...prev, [name]: value, lecturerSignatureDate: prev.lecturerSignatureDate || (value ? new Date().toISOString() : null) }));
+      } else {
+        setFormData((prev) => ({ ...prev, [name]: value }));
+      }
     }
     if (errorMessage) setErrorMessage("");
   };
@@ -217,6 +222,7 @@ useEffect(() => {
       totalDesignatedInput: parseFloat(grandTotalQap),
       status: 'Pending HOD', 
       lecturerSignature: formData.lecturerSignature, 
+      lecturerSignatureDate: formData.lecturerSignatureDate || (formData.lecturerSignature ? new Date().toISOString() : null),
       hodSignature: previewData?.hodSignature || '', 
       deanSignature: previewData?.deanSignature || '',
       rejectionReason: '', 

@@ -79,7 +79,7 @@ const DirectorSubmissionList = ({ status, title, subtitle, emptyMessage }) => {
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-800 dark:text-white">
       <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
-      <main className="flex-1 p-4 pt-20 sm:p-6 sm:pt-20 lg:ml-64 lg:pt-6">
+      <main className="min-w-0 flex-1 p-4 pt-20 sm:p-6 sm:pt-20 lg:ml-64 lg:pt-6">
         {!sidebarOpen && (
           <button
             className="fixed left-4 top-4 z-[60] rounded-xl border border-gray-200 bg-white p-3 shadow-md lg:hidden"
@@ -126,8 +126,8 @@ const DirectorSubmissionList = ({ status, title, subtitle, emptyMessage }) => {
           ) : filteredSubmissions.length === 0 ? (
             <p className="px-5 py-12 text-center text-gray-500">{searchTerm ? "No matching submissions found." : emptyMessage}</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-sm">
+            <div className="w-full overflow-x-auto overflow-y-auto max-h-[55vh]">
+              <table className="w-full min-w-0 text-left text-sm table-auto">
                 <thead className="bg-[var(--primary-color)] text-xs uppercase text-white">
                   <tr>
                     <th className="px-5 py-4">PF Number</th>
@@ -149,10 +149,10 @@ const DirectorSubmissionList = ({ status, title, subtitle, emptyMessage }) => {
                     const details = submission.lecturerDetails || {};
                     return (
                       <tr key={submission._id} className="hover:bg-purple-50 dark:hover:bg-gray-800">
-                        <td className="px-5 py-4 font-medium">{details.pfNumber || "-"}</td>
-                        <td className="px-5 py-4">{getLecturerName(submission)}</td>
-                        <td className="px-5 py-4">{details.school || "-"}</td>
-                        <td className="px-5 py-4">{details.department || "-"}</td>
+                        <td className="px-5 py-4 font-medium break-words">{details.pfNumber || "-"}</td>
+                        <td className="px-5 py-4 break-words">{getLecturerName(submission)}</td>
+                        <td className="px-5 py-4 break-words">{details.school || "-"}</td>
+                        <td className="px-5 py-4 break-words">{details.department || "-"}</td>
                         {Array.isArray(status) && (
                           <td className="px-5 py-4">
                             <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
@@ -162,8 +162,8 @@ const DirectorSubmissionList = ({ status, title, subtitle, emptyMessage }) => {
                         )}
                         {status === "Rejected" && (
                           <>
-                            <td className="px-5 py-4 font-medium">{submission.rejectedBy || "-"}</td>
-                            <td className="max-w-xs px-5 py-4 text-gray-600" title={submission.rejectionReason || "No reason provided"}>
+                            <td className="px-5 py-4 font-medium break-words">{submission.rejectedBy || "-"}</td>
+                            <td className="max-w-xs px-5 py-4 text-gray-600 break-words" title={submission.rejectionReason || "No reason provided"}>
                               {submission.rejectionReason || "No reason provided"}
                             </td>
                           </>

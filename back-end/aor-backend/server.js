@@ -1,5 +1,5 @@
-const verifyToken = require('./middleware/auth');
 require('dotenv').config();
+const verifyToken = require('./middleware/auth');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -195,15 +195,18 @@ app.get(
       const department =
         req.params.departmentName.trim();
 
-      const submissions =
-        await Submission.find({
-          'lecturerDetails.department': {
-            $regex: new RegExp(
-              `^${department}$`,
-              'i'
-            )
-          }
-        }).sort({ createdAt: -1 });
+      // sort department submissions by totalDesignatedInput desc (fallback to computed total)
+      const submissions = await Submission.find({
+        'lecturerDetails.department': {
+          $regex: new RegExp(`^${department}$`, 'i')
+        }
+      });
+
+      submissions.sort((a, b) => {
+        const aTotal = Number(a.totalDesignatedInput) || (Array.isArray(a.teaching) ? a.teaching.reduce((s, r) => s + (parseFloat(r.qap) || 0), 0) : 0) + (Array.isArray(a.administrativeDuties) ? a.administrativeDuties.reduce((s, r) => s + (parseFloat(r.qap) || 0), 0) : 0) + (Array.isArray(a.research) ? a.research.reduce((s, r) => s + (parseFloat(r.percentInput) || 0), 0) : 0);
+        const bTotal = Number(b.totalDesignatedInput) || (Array.isArray(b.teaching) ? b.teaching.reduce((s, r) => s + (parseFloat(r.qap) || 0), 0) : 0) + (Array.isArray(b.administrativeDuties) ? b.administrativeDuties.reduce((s, r) => s + (parseFloat(r.qap) || 0), 0) : 0) + (Array.isArray(b.research) ? b.research.reduce((s, r) => s + (parseFloat(r.percentInput) || 0), 0) : 0);
+        return bTotal - aTotal;
+      });
 
       res.json(submissions);
 
@@ -309,8 +312,27 @@ app.patch('/api/submissions/:id/status', verifyToken, async (req, res) => {
 
     const updatedSubmission = await Submission.findByIdAndUpdate(
       req.params.id, 
-      updateData,
+      updateData,
       { new: true } );
+    // if lecturerSignature/hodSignature/deanSignature/directorSignature updated and no date provided, set corresponding dates
+    let needsSave = false;
+    if (updateData.lecturerSignature && !updateData.lecturerSignatureDate) {
+      updatedSubmission.lecturerSignatureDate = new Date();
+      needsSave = true;
+    }
+    if (updateData.hodSignature && !updateData.hodSignatureDate) {
+      updatedSubmission.hodSignatureDate = new Date();
+      needsSave = true;
+    }
+    if (updateData.deanSignature && !updateData.deanSignatureDate) {
+      updatedSubmission.deanSignatureDate = new Date();
+      needsSave = true;
+    }
+    if (updateData.directorSignature && !updateData.directorSignatureDate) {
+      updatedSubmission.directorSignatureDate = new Date();
+      needsSave = true;
+    }
+    if (needsSave) await updatedSubmission.save();
 // Notify Dean when HOD approves
 if (updatedSubmission.status === "Pending Dean") {
   await createNotification({
@@ -383,6 +405,13 @@ app.post('/api/submissions',verifyToken, async (req, res) => {
     }
 
     const newSubmission = new Submission(incoming);
+    // ensure totalDesignatedInput and lecturer signature date are persisted
+    newSubmission.totalDesignatedInput = incoming.totalDesignatedInput || 0;
+    if (incoming.lecturerSignature && !incoming.lecturerSignatureDate) {
+      newSubmission.lecturerSignatureDate = new Date();
+    } else if (incoming.lecturerSignatureDate) {
+      newSubmission.lecturerSignatureDate = new Date(incoming.lecturerSignatureDate);
+    }
     const savedSubmission = await newSubmission.save();
 
     await createNotification({
@@ -974,7 +1003,154 @@ app.put(
     }
   }
 );
+app.get('/api/setup-users', async (req, res) => {
+  try {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({
+        message: 'User seeding is disabled in production. Use a secure admin route instead.'
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash('123', salt);
+
+    const usersToUpsert = [
+      {
+        name: 'Prof. S.M Dauda',
+        pfNumber: '400',
+        role: 'Director',
+        password: hashedPassword,
+        school: 'Office of the Director',
+        department: '',
+        firstLogin: true,
+      }
+    ];
+
+    const deans = [
+      { school: 'SICT', pfNumber: '300' },
+      { school: 'SIPET', pfNumber: '301' },
+      { school: 'SFAT', pfNumber: '302' },
+      { school: 'SSTE', pfNumber: '303' },
+      { school: 'SAMET', pfNumber: '304' },
+      { school: 'SIT', pfNumber: '305' },
+      { school: 'SLS', pfNumber: '306' },
+      { school: 'SET', pfNumber: '307' },
+      { school: 'SAHS', pfNumber: '308' },
+      { school: 'SAFT', pfNumber: '309' },
+      { school: 'SAT', pfNumber: '310' },
+      { school: 'SEET', pfNumber: '311' },
+      { school: 'SPS', pfNumber: '312' },
+      { school: 'PGS', pfNumber: '313' },
+      { school: 'SBMS', pfNumber: '314' },
+      { school: 'SPhS', pfNumber: '315' },
+    ];
+
+    deans.forEach((dean) => {
+      usersToUpsert.push({
+        name: 'Dean of ' + dean.school,
+        pfNumber: dean.pfNumber,
+        role: 'Dean',
+        password: hashedPassword,
+        school: dean.school,
+        department: 'Dean Office',
+        firstLogin: true,
+      });
+    });
+
+    let hodCounter = 200;
+    Object.entries(schoolDepartments).forEach(([school, departments]) => {
+      departments.forEach((department) => {
+        usersToUpsert.push({
+          name: 'HOD ' + department,
+          pfNumber: String(hodCounter),
+          role: 'HOD',
+          password: hashedPassword,
+          school,
+          department,
+          firstLogin: true,
+        });
+        hodCounter++;
+      });
+    });
+
+    let lecturerCounter = 1;
+    let lecturerPF = 500;
+    Object.entries(schoolDepartments).forEach(([school, departments]) => {
+      departments.forEach((department) => {
+        for (let i = 1; i <= 78; i++) {
+          usersToUpsert.push({
+            name: 'Lecturer ' + lecturerCounter,
+            pfNumber: String(lecturerPF),
+            role: 'Lecturer',
+            password: hashedPassword,
+            school,
+            department,
+            firstLogin: true,
+          });
+
+          lecturerCounter++;
+          lecturerPF++;
+        }
+      });
+    });
+
+    const upsertResults = await Promise.all(
+      usersToUpsert.map((userData) =>
+        User.findOneAndUpdate(
+          { pfNumber: userData.pfNumber },
+          { $set: userData },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        )
+      )
+    );
+
+    res.json({
+      message: '✅ Existing users were updated and missing department users were added for local development.',
+      createdOrUpdated: upsertResults.length,
+      defaultPassword: '123',
+    });
+  } catch (error) {
+    console.log(error);
+    res.status(500).json({
+      message: '❌ There was an error updating users.'
+    });
+  }
+});
+
+app.patch('/api/users/reset-all-passwords', verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'Director') {
+      return res.status(403).json({
+        message: 'Only the Director can reset all user passwords.'
+      });
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const defaultPassword = await bcrypt.hash('123', salt);
+
+    const result = await User.updateMany(
+      {},
+      {
+        $set: {
+          password: defaultPassword,
+          firstLogin: true,
+        }
+      }
+    );
+
+    res.json({
+      message: 'All user passwords were reset to 123.',
+      matched: result.matchedCount,
+      modified: result.modifiedCount,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: 'Unable to reset all passwords.'
+    });
+  }
+});
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
+  console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });

@@ -90,6 +90,8 @@ const DepartmentDetails = () => {
           effort: activeLecturerCount > 0 ? Math.round(runningEffortSum / activeLecturerCount) : 0
         });
         
+        // sort lecturers by totalInput descending (highest first)
+        formattedLecturers.sort((a, b) => (b.totalInput || 0) - (a.totalInput || 0));
         setLecturersList(formattedLecturers);
       } catch (error) {
         console.error("Error generating backend department views:", error);

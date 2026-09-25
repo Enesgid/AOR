@@ -10,7 +10,7 @@ const schoolDepartments = {
   SIT: ['Logistics and Transport Technology','Entrepreneurship','Project Managemnet Technology'],
   SLS: ['Biochemistry', 'Forensic science', 'Microbiology','Plant Biology', 'Animal Biology', 'Public health'],
   SPS: ['Chemistry', 'Geography', 'Mathematics', 'Physics','Applied GeoPhysics', 'Geology', 'Statistics','Meterology','Industrial Mathematics'],
-  SSTE: ['Industrial and Technology Education', 'Science Education','Educational Technology','Library and Information Science'],
+  SSTE: ['Industrial and Technology Education', 'Science Education','Educational Technology','Library and Information Science','General Studies(GST)'],
   PGS: ['Postgraduate Schools'],
   SBMS:['Medicine and surgery', 'Human Anatomy','Human Physiology'],
   SAHS:['Nursing Science','Medical Laboratory Science'],

@@ -46,19 +46,22 @@ const [autoRefresh, setAutoRefresh] = useState(
   JSON.parse(localStorage.getItem("autoRefresh")) ?? false
 );
 useEffect(() => {
-  const handleStorage = () => {
+  const syncAutoRefresh = () => {
     setAutoRefresh(
       JSON.parse(localStorage.getItem("autoRefresh")) ?? false
     );
   };
 
-  window.addEventListener("storage", handleStorage);
+  const handleStorage = () => syncAutoRefresh();
+  const handleRefreshChange = () => syncAutoRefresh();
 
-  return () =>
-    window.removeEventListener(
-      "storage",
-      handleStorage
-    );
+  window.addEventListener("storage", handleStorage);
+  window.addEventListener("auto-refresh-changed", handleRefreshChange);
+
+  return () => {
+    window.removeEventListener("storage", handleStorage);
+    window.removeEventListener("auto-refresh-changed", handleRefreshChange);
+  };
 }, []);
 const handlePdfExport = () => {
   exportDashboardPDF(reportRef, selectedSession);
@@ -134,13 +137,14 @@ const fetchSessions = async () => {
 useEffect(() => {
   if (!autoRefresh) return;
 
+  fetchSubmissions();
+
   const interval = setInterval(() => {
     fetchSubmissions();
   }, 30000); // every 30 seconds
 
   return () => clearInterval(interval);
-
-}, [autoRefresh]);
+}, [autoRefresh, selectedSession]);
 useEffect(() => {
   const handleStorageChange = () => {
     setAiAssistant(

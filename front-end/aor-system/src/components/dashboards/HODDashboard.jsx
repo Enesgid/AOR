@@ -142,13 +142,12 @@ if (!result.isConfirmed) return;
 
 const signatureName = result.value;
 
-      const formattedDate = new Date().toLocaleDateString('en-GB', {
-        day: 'numeric', month: 'short', year: 'numeric'
-      });
+      const isoDate = new Date().toISOString();
 
       payload = {
         status: 'Pending Dean', 
-        hodSignature: `${signatureName} - ${formattedDate}`,
+        hodSignature: signatureName,
+        hodSignatureDate: isoDate,
         approvalDate: new Date().toISOString()
       };
     }
@@ -255,7 +254,9 @@ const signatureName = result.value;
           {submissions.length === 0 ? (
             <p style={{ textAlign: 'center', color: 'rgb(78, 9, 78)', padding: '40px 0' }}>No forms currently pending HOD validation.</p>
           ) : (
-            <table className=" dashboard-table overflow-x-auto">
+            <div className="w-full overflow-x-auto">
+              <div className="w-full overflow-auto max-h-[55vh]">
+                <table className="dashboard-table w-full table-auto">
               <thead>
                 <tr style={{ backgroundColor: 'rgb(78, 9, 78)', color: 'white', textAlign: 'left' }}>
                   <th >PF Number</th>
@@ -264,12 +265,12 @@ const signatureName = result.value;
                   <th style={{ textAlign: 'center' }}>Actions</th>
                 </tr>
               </thead>
-              <tbody>
+                <tbody>
                 {filteredSubmissions.map((sub, index) => (
                   <tr key={sub._id} >
-                    <td >{sub.lecturerDetails?.pfNumber}</td>
-                    <td >{sub.lecturerDetails?.firstName} {sub.lecturerDetails?.lastName}</td>
-                    <td >{sub.lecturerDetails?.department}</td>
+                    <td className="break-words">{sub.lecturerDetails?.pfNumber}</td>
+                    <td className="break-words">{sub.lecturerDetails?.firstName} {sub.lecturerDetails?.lastName}</td>
+                    <td className="break-words">{sub.lecturerDetails?.department}</td>
                     
                     <td className='dashB' >
                       <button onClick={() => setViewingForm(sub)} className='btn btn-preview'>View </button>
@@ -280,7 +281,9 @@ const signatureName = result.value;
                   </tr>
                 ))}
               </tbody>
-            </table>
+                </table>
+              </div>
+            </div>
           )}
         </div>
         </div>

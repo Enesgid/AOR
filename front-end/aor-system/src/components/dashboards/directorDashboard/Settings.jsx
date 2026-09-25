@@ -110,6 +110,7 @@ useEffect(() => {
     "autoRefresh",
     JSON.stringify(autoRefresh)
   );
+  window.dispatchEvent(new Event("auto-refresh-changed"));
 }, [autoRefresh]);
 
 useEffect(() => {
@@ -448,7 +449,12 @@ const deleteAllSubmissions = async () => {
                 label="Auto Refresh Dashboard"
                 description="Keep statistics updated automatically"
                 checked={autoRefresh}
-                onChange={() => setAutoRefresh(!autoRefresh)}
+                onChange={() => {
+                  const nextValue = !autoRefresh;
+                  setAutoRefresh(nextValue);
+                  localStorage.setItem("autoRefresh", JSON.stringify(nextValue));
+                  window.dispatchEvent(new Event("auto-refresh-changed"));
+                }}
               />
               {isDirector && (
               <>
