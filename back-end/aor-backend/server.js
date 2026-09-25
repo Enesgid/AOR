@@ -242,6 +242,51 @@ app.get('/api/submissions',verifyToken, async (req, res) => {
     res.status(500).json({ error: 'Failed to fetch submissions' });
   }
 });
+
+const normalizeSignatureDate = (value) => {
+  if (value === null || value === undefined || value === '') {
+    return null;
+  }
+
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const prepareSubmissionPayload = (incoming) => {
+  const payload = { ...incoming };
+  const lecturerDateFromRoot = normalizeSignatureDate(payload.lecturerSignatureDate);
+  const lecturerDateFromNested = normalizeSignatureDate(payload.lecturerDetails?.lecturerSignatureDate);
+  const finalLecturerDate = lecturerDateFromRoot || lecturerDateFromNested ||
+    (payload.lecturerSignature ? new Date() : null);
+
+  if (payload.lecturerDetails) {
+    payload.lecturerDetails.lecturerSignatureDate = finalLecturerDate;
+  }
+
+  payload.lecturerSignatureDate = finalLecturerDate;
+
+  return payload;
+};
+
+app.put('/api/submissions/:id', verifyToken, async (req, res) => {
+  try {
+    const payload = prepareSubmissionPayload(req.body);
+    const updatedSubmission = await Submission.findByIdAndUpdate(
+      req.params.id,
+      payload,
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedSubmission) {
+      return res.status(404).json({ message: 'Submission not found' });
+    }
+
+    res.json(updatedSubmission);
+  } catch (error) {
+    console.error('Error updating submission:', error);
+    res.status(500).json({ message: 'Failed to update submission' });
+  }
+});
   
 
 // Directors Approval Pipeline 
@@ -404,14 +449,9 @@ app.post('/api/submissions',verifyToken, async (req, res) => {
       return res.status(400).json({ message: 'A submission for this session and semester already exists for this lecturer.' });
     }
 
-    const newSubmission = new Submission(incoming);
-    // ensure totalDesignatedInput and lecturer signature date are persisted
-    newSubmission.totalDesignatedInput = incoming.totalDesignatedInput || 0;
-    if (incoming.lecturerSignature && !incoming.lecturerSignatureDate) {
-      newSubmission.lecturerSignatureDate = new Date();
-    } else if (incoming.lecturerSignatureDate) {
-      newSubmission.lecturerSignatureDate = new Date(incoming.lecturerSignatureDate);
-    }
+    const cleanPayload = prepareSubmissionPayload(incoming);
+    const newSubmission = new Submission(cleanPayload);
+    newSubmission.totalDesignatedInput = cleanPayload.totalDesignatedInput || 0;
     const savedSubmission = await newSubmission.save();
 
     await createNotification({

@@ -7,6 +7,7 @@ import Sidebar from './analysis/Sidebar';
 import { Menu } from 'lucide-react';
 import { errorAlert, promptAlert } from '../../utils/alerts';
 import { getCurrentToken, getCurrentUser } from '../../utils/session';
+import API_BASE_URL from '../../config/api';
 
 const DeanDashboard = () => {
   const [submissions, setSubmissions] = useState([]);
@@ -55,6 +56,20 @@ const DeanDashboard = () => {
       month: 'short',
       year: 'numeric',
     });
+  };
+
+  const formatSignedBy = (name, dateValue) => {
+    if (!name) return 'Not Signed';
+    if (!dateValue) return name;
+
+    const parsedDate = new Date(dateValue);
+    if (Number.isNaN(parsedDate.getTime())) return name;
+
+    return `${name} - ${parsedDate.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    })}`;
   };
 
  
@@ -274,7 +289,7 @@ const signatureName = result.value;
                     <td className="break-words">{sub.lecturerDetails?.department}</td>
                     
                     <td className="px-3 py-2 break-words" style={{ padding: '12px', color: 'rgb(18, 99, 18)', fontSize: '13px' }}>
-                      ✓ {sub.hodSignature || 'Signed'}
+                      ✓ {formatSignedBy(sub.hodSignature, sub.hodSignatureDate)}
                     </td>
                     
                     <td className='dashB'>

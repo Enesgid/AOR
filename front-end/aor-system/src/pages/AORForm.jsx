@@ -197,9 +197,17 @@ useEffect(() => {
     if (name === 'school') {
       setFormData((prev) => ({ ...prev, school: value, department: '' }));
     } else {
-      // capture lecturer signature date when name is entered
       if (name === 'lecturerSignature') {
-        setFormData((prev) => ({ ...prev, [name]: value, lecturerSignatureDate: prev.lecturerSignatureDate || (value ? new Date().toISOString() : null) }));
+        setFormData((prev) => {
+          const hasExistingDate = !!prev.lecturerSignatureDate;
+          return {
+            ...prev,
+            lecturerSignature: value,
+            lecturerSignatureDate: hasExistingDate
+              ? prev.lecturerSignatureDate
+              : (value ? new Date().toISOString() : null),
+          };
+        });
       } else {
         setFormData((prev) => ({ ...prev, [name]: value }));
       }
@@ -214,8 +222,14 @@ useEffect(() => {
       calculateTotal(researchRows, 'percentInput')
     ).toFixed(2);
 
+    const lecturerSignatureDateValue =
+      formData.lecturerSignatureDate ?? (formData.lecturerSignature ? new Date().toISOString() : null);
+
     return {
-      lecturerDetails: formData,
+      lecturerDetails: {
+        ...formData,
+        lecturerSignatureDate: lecturerSignatureDateValue,
+      },
       teaching: teachingRows,
       administrativeDuties: adminRows,
       research: researchRows,
@@ -223,7 +237,7 @@ useEffect(() => {
       totalDesignatedInput: parseFloat(grandTotalQap),
       status: 'Pending HOD', 
       lecturerSignature: formData.lecturerSignature, 
-      lecturerSignatureDate: formData.lecturerSignatureDate || (formData.lecturerSignature ? new Date().toISOString() : null),
+      lecturerSignatureDate: lecturerSignatureDateValue,
       hodSignature: previewData?.hodSignature || '', 
       deanSignature: previewData?.deanSignature || '',
       rejectionReason: '', 

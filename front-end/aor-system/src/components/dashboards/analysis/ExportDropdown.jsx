@@ -88,7 +88,6 @@ const ExportDropdown = ({
               className="w-full mt-2 p-2 border rounded"
             >
               <option value="">session</option>
-              <option value="2025/2026">2025/2026</option>
               {sessions.map((s, i) => (
                 <option key={i} value={s}>{s}</option>
               ))}

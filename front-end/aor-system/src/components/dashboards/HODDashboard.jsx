@@ -7,6 +7,8 @@ import DashboardHeader from './analysis/DashboardHeader';
 import { Menu } from 'lucide-react';
 import { errorAlert, promptAlert } from '../../utils/alerts';
 import { getCurrentToken, getCurrentUser } from '../../utils/session';
+import API_BASE_URL from '../../config/api';
+
 const HODDashboard = () => {
   const [submissions, setSubmissions] = useState([]);
   const [selectedIds, setSelectedIds] = useState([]);

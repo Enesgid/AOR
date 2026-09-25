@@ -2,7 +2,43 @@ import React from 'react';
 
 const PreviewModal = ({ data, onClose ,onApprove ,onReject}) => {
   if (!data) return null;
-  const { lecturerDetails, teaching, administrativeDuties, research, communityService } = data;
+  const lecturerDetails = data.lecturerDetails || {};
+  const { teaching, administrativeDuties, research, communityService } = data;
+
+  const formatShortDate = (value) => {
+    if (!value) return '';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return '';
+    return parsed.toLocaleDateString('en-GB', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  const lecturerSignatureName = [
+    data?.lecturerSignature,
+    lecturerDetails?.lecturerSignature,
+    data?.lecturerDetails?.lecturerSignature,
+  ].find((value) => typeof value === 'string' && value.trim()) || '';
+
+  const lecturerSignatureDateValue = [
+    data?.lecturerSignatureDate,
+    lecturerDetails?.lecturerSignatureDate,
+    data?.lecturerDetails?.lecturerSignatureDate,
+    data?.signatureDate,
+    lecturerDetails?.signatureDate,
+    data?.dateSigned,
+    lecturerDetails?.dateSigned,
+  ].find((value) => {
+    if (value === null || value === undefined || value === '') return false;
+    const parsed = new Date(value);
+    return !Number.isNaN(parsed.getTime());
+  }) || null;
+
+  const lecturerDisplayDate = formatShortDate(lecturerSignatureDateValue);
+  const hodDisplayDate = formatShortDate(data?.hodSignatureDate);
+  const deanDisplayDate = formatShortDate(data?.deanSignatureDate);
 
   // --- MATH HELPER ---
   const calculateTotal = (rows, fieldName) => {
@@ -218,15 +254,17 @@ const PreviewModal = ({ data, onClose ,onApprove ,onReject}) => {
               {/* Lecturer Signature */}
               <div>
                 <div style={{ borderBottom: '1px solid #000', marginBottom: '5px', minHeight: '24px' }}>
-                {lecturerDetails.lecturerSignature ? (
+                {lecturerSignatureName ? (
                   <span style={{ fontStyle: 'italic' }}>
-                    {lecturerDetails.lecturerSignature} - {lecturerDetails.lecturerSignatureDate ? new Date(lecturerDetails.lecturerSignatureDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : new Date().toLocaleDateString('en-GB',{ day: 'numeric', month: 'short', year: 'numeric' })} (E-Signed)
+                    {lecturerSignatureName}
+                    {lecturerDisplayDate ? ` - ${lecturerDisplayDate}` : ''}
+                    {' (E-Signed)'}
                   </span>
                 ) : (
                   '\u00A0'
                 )}
                 </div>
-                <strong>Lecturer's Signature / Date</strong>
+                <strong>Lecturer's Signature </strong>
               </div>
               
               {/* HOD Signature */}
@@ -234,7 +272,9 @@ const PreviewModal = ({ data, onClose ,onApprove ,onReject}) => {
                 <div style={{ borderBottom: '1px solid #000', marginBottom: '5px', minHeight: '24px' }}>
                   {data.hodSignature ? (
                     <span style={{fontStyle: 'italic' }}>
-                      {data.hodSignature} - {data.hodSignatureDate ? new Date(data.hodSignatureDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''} (E-Signed)
+                      {data.hodSignature}
+                      {hodDisplayDate ? ` - ${hodDisplayDate}` : ''}
+                      {' (E-Signed)'}
                     </span>
                   ) : (
                     '\u00A0'
@@ -247,7 +287,11 @@ const PreviewModal = ({ data, onClose ,onApprove ,onReject}) => {
               <div>
               <div style={{ borderBottom: '1px solid #000', marginBottom: '5px', minHeight: '24px' }}>
                 {data.deanSignature ? (
-                  <span style={{ fontStyle: 'italic' }}> {data.deanSignature} - {data.deanSignatureDate ? new Date(data.deanSignatureDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : ''} (E-Signed)</span>
+                  <span style={{ fontStyle: 'italic' }}>
+                    {data.deanSignature}
+                    {deanDisplayDate ? ` - ${deanDisplayDate}` : ''}
+                    {' (E-Signed)'}
+                  </span>
                 ) : (
                   '\u00A0'
                 )}
