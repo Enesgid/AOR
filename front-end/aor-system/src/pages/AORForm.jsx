@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Header from '../components/Header';
 import LecturerInfo from '../components/LecturerInfo';
 import DynamicTable from '../components/DynamicTable';
@@ -7,6 +7,7 @@ import PreviewModal from '../components/PreviewModal';
 import { successAlert, confirmAlert } from '../utils/alerts';
 import { getCurrentUser, getCurrentToken } from '../utils/session';
 import API_BASE_URL from '../config/api';
+
 const AorForm = () => {
   const initialFormData = {
     session: '', semester: '', appointment: '',
@@ -14,186 +15,223 @@ const AorForm = () => {
     school: '', department: '', position: '', phone: '',
     salaryGrade: '', teachingCredit: '', leave: '', lecturerSignature: '', lecturerSignatureDate: null
   };
+
   const user = getCurrentUser();
-const draftKey = `aorDraft_${user?.pfNumber}`;
+
+  const getActiveLecturerIdentity = () => {
+    const currentUser = getCurrentUser();
+    return currentUser?.officialPfNumber || currentUser?.pfNumber || localStorage.getItem('loggedInPF') || localStorage.getItem('pfNumber') || formData.pfNumber || '';
+  };
+
+  const getActiveInstitutionCycle = () => ({
+    session: institutionSettings?.academicSession || formData.session || '',
+    semester: institutionSettings?.semester || formData.semester || 'First Semester',
+  });
+
+  const getDraftKey = (sessionValue = '', semesterValue = '') => {
+    const pf = user?.officialPfNumber || user?.pfNumber || localStorage.getItem('loggedInPF') || localStorage.getItem('pfNumber') || 'guest';
+    return `aorDraft_${pf}_${(sessionValue || 'current').replace(/\s+/g, '_')}_${(semesterValue || 'semester').replace(/\s+/g, '_')}`;
+  };
+
   const [formData, setFormData] = useState(initialFormData);
-  const [institutionSettings, setInstitutionSettings] =
-  useState(null);
+  const [institutionSettings, setInstitutionSettings] = useState(null);
   const [teachingRows, setTeachingRows] = useState([{ id: 1 }]);
   const [adminRows, setAdminRows] = useState([{ id: 2 }]);
-  const [researchRows, setResearchRows] = useState([{ id: 3 }]);
+  const [researchRows, setResearchRows] = useState([{ id: 3, percentInput: 15 }]);
   const [communityRows, setCommunityRows] = useState([{ id: 4 }]);
   const [draftLoaded, setDraftLoaded] = useState(false);
+  const activeCycleRequestRef = useRef(null);
 
   const [showModal, setShowModal] = useState(false);
   const [previewData, setPreviewData] = useState(null);
   const [errorMessage, setErrorMessage] = useState("");
-  
-  const [submissionStatus, setSubmissionStatus] = useState(null); 
+
+  const [submissionStatus, setSubmissionStatus] = useState(null);
   const [rejectionComment, setRejectionComment] = useState('');
-  const [rejectedBy, setRejectedBy] = useState(''); 
+  const [rejectedBy, setRejectedBy] = useState('');
   const [submissionId, setSubmissionId] = useState(null);
-  
-  
-const fetchLecturerData = async () => {
-  const storedPf =
-    localStorage.getItem("loggedInPF") ||
-    localStorage.getItem("pfNumber");
+
+  const clearFormForSelectedCycle = (nextSession, nextSemester) => {
+    setFormData((prev) => ({
+      ...initialFormData,
+      session: nextSession || prev.session || '',
+      semester: nextSemester || prev.semester || '',
+      pfNumber: user?.pfNumber || prev.pfNumber || localStorage.getItem('loggedInPF') || localStorage.getItem('pfNumber') || '',
+      firstName: prev.firstName || '',
+      lastName: prev.lastName || '',
+      school: prev.school || '',
+      department: prev.department || '',
+      appointment: prev.appointment || '',
+      position: prev.position || '',
+      phone: prev.phone || '',
+      salaryGrade: prev.salaryGrade || '',
+      teachingCredit: prev.teachingCredit || '',
+      leave: prev.leave || '',
+    }));
+    setTeachingRows([{ id: 1 }]);
+    setAdminRows([{ id: 2 }]);
+    setResearchRows([{ id: 3, percentInput: 15 }]);
+    setCommunityRows([{ id: 4 }]);
+    setSubmissionId(null);
+    setSubmissionStatus(null);
+    setRejectionComment('');
+    setRejectedBy('');
+    setPreviewData(null);
+  };
+
+  const populateSubmissionIntoForm = (submission, sessionValue, semesterValue) => {
+    const lecturerInfo = submission?.lecturerDetails || {};
+    setSubmissionId(submission?._id || null);
+    setSubmissionStatus(submission?.status || null);
+    setRejectionComment(submission?.rejectionReason || submission?.reason || '');
+    setRejectedBy(submission?.rejectedBy || 'Management');
+    setPreviewData(submission);
+
+    setFormData((prev) => ({
+      ...initialFormData,
+      ...prev,
+      ...lecturerInfo,
+      session: sessionValue || lecturerInfo.session || prev.session || '',
+      semester: semesterValue || lecturerInfo.semester || prev.semester || '',
+      pfNumber: lecturerInfo.pfNumber || user?.pfNumber || prev.pfNumber || localStorage.getItem('loggedInPF') || localStorage.getItem('pfNumber') || '',
+    }));
+
+    setTeachingRows(submission?.teaching?.length ? submission.teaching : [{ id: 1 }]);
+    setAdminRows(submission?.administrativeDuties?.length ? submission.administrativeDuties : [{ id: 2 }]);
+    setResearchRows(
+      submission?.research?.length
+        ? submission.research.map((row) => ({ ...row, percentInput: Number(row.percentInput) || 15 }))
+        : [{ id: 3, percentInput: 15 }]
+    );
+    setCommunityRows(submission?.communityService?.length ? submission.communityService : [{ id: 4 }]);
+  };
+
+  const fetchSubmissionForCurrentCycle = async (sessionValue, semesterValue) => {
+    const pfNumber = user?.pfNumber || localStorage.getItem('loggedInPF') || localStorage.getItem('pfNumber');
     const token = getCurrentToken();
 
-  if (!storedPf || !token) {
-    console.warn("Stopping: No PF Number or Token found in LocalStorage");
-    return null;
-  }
-
-  try {
-    const response = await fetch(
-      `${API_BASE_URL}/api/submissions/track/${storedPf}`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    if (!response.ok)
-      throw new Error(`Server returned status: ${response.status}`);
-
-    const data = await response.json();
-    const user = getCurrentUser();
-
-    if (Array.isArray(data) && data.length > 0) {
-      const myForm = data[0];
-
-      setSubmissionId(myForm._id);
-      setSubmissionStatus(myForm.status);
-
-      if (myForm.status === "Rejected") {
-        setRejectionComment(
-          myForm.rejectionReason ||
-          myForm.reason ||
-          "No specific reason provided."
-        );
-
-        setRejectedBy(
-          myForm.rejectedBy || "Management"
-        );
-      }
-
-      setPreviewData(myForm);
-
-      return myForm;
+    if (!sessionValue || !semesterValue || !pfNumber || !token) {
+      return null;
     }
 
-   // No previous submission, populate the form from the logged-in user
-if (user) {
-  setFormData(prev => ({
-    ...prev,
-    pfNumber: user.pfNumber || "",
-  }));
-}
+    const requestId = `${Date.now()}_${Math.random()}`;
+    activeCycleRequestRef.current = requestId;
+    setIsLoadingSemesterData(true);
 
-return null;
-
-  } catch (error) {
-    console.error("❌ Error fetching profile:", error);
-
-    return null;
-  }
-};        
-const loadDraft = () => {
-        const savedDraft = localStorage.getItem(draftKey);
-
-        if (!savedDraft) return false;
-
-        try {
-          const draft = JSON.parse(savedDraft);
-
-          setFormData(draft.formData || initialFormData);
-          setTeachingRows(draft.teachingRows || [{ id: 1 }]);
-          setAdminRows(draft.adminRows || [{ id: 2 }]);
-          setResearchRows(draft.researchRows || [{ id: 3 }]);
-          setCommunityRows(draft.communityRows || [{ id: 4 }]);
-
-          return true;
-        } catch (err) {
-          console.error(err);
-          return false;
-        }};
-useEffect(() => {
-
-  const initializeForm = async () => {
-
-    const hasDraft = loadDraft();
-    const submission = await fetchLecturerData();
-    if (!hasDraft && submission) {
-
-      setFormData(prev => ({
-        ...prev,
-        ...submission.lecturerDetails,
-      }));
-
-      setTeachingRows(
-        submission.teaching?.length
-          ? submission.teaching
-          : [{ id: 1 }]
-      );
-
-      setAdminRows(
-        submission.administrativeDuties?.length
-          ? submission.administrativeDuties
-          : [{ id: 2 }]
-      );
-
-      setResearchRows(
-        submission.research?.length
-          ? submission.research
-          : [{ id: 3 }]
-      );
-
-      setCommunityRows(
-        submission.communityService?.length
-          ? submission.communityService
-          : [{ id: 4 }]
-      );
-    }
-
-    setDraftLoaded(true);
-
-  };
-
-  initializeForm();
-
-}, []);
-
-    useEffect(() => {
-    const fetchInstitutionSettings = async () => {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/settings`
+        `${API_BASE_URL}/api/submissions/lecturer/${encodeURIComponent(pfNumber)}?session=${encodeURIComponent(sessionValue)}&semester=${encodeURIComponent(semesterValue)}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
 
-      const data = await response.json();
+      if (activeCycleRequestRef.current !== requestId) return null;
 
-      setInstitutionSettings(data);
+      if (response.status === 404) {
+        clearFormForSelectedCycle(sessionValue, semesterValue);
+        return null;
+      }
 
-      setFormData((prev) => ({
-        ...prev,
-        session: data.academicSession,
-        semester: data.semester,
-      }));
+      if (!response.ok) {
+        throw new Error(`Server returned status: ${response.status}`);
+      }
 
+      const submission = await response.json();
+
+      if (activeCycleRequestRef.current !== requestId) return null;
+
+      populateSubmissionIntoForm(submission, sessionValue, semesterValue);
+      return submission;
     } catch (error) {
-      console.error(error);
+      console.error('❌ Error fetching lecturer submission for selected cycle:', error);
+      return null;
+    } finally {
+      if (activeCycleRequestRef.current === requestId) {
+        setIsLoadingSemesterData(false);
+      }
     }
   };
 
-  fetchInstitutionSettings();
+  const [isLoadingSemesterData, setIsLoadingSemesterData] = useState(false);
 
-}, []);  
+  const loadDraft = (sessionValue, semesterValue) => {
+    const savedDraft = localStorage.getItem(getDraftKey(sessionValue, semesterValue));
+
+    if (!savedDraft) return false;
+
+    try {
+      const draft = JSON.parse(savedDraft);
+      setFormData((prev) => ({
+        ...initialFormData,
+        ...prev,
+        ...(draft.formData || {}),
+        session: sessionValue || draft.formData?.session || prev.session || '',
+        semester: semesterValue || draft.formData?.semester || prev.semester || '',
+        pfNumber: user?.pfNumber || draft.formData?.pfNumber || prev.pfNumber || localStorage.getItem('loggedInPF') || localStorage.getItem('pfNumber') || '',
+      }));
+      setTeachingRows(draft.teachingRows || [{ id: 1 }]);
+      setAdminRows(draft.adminRows || [{ id: 2 }]);
+      setResearchRows(
+        draft.researchRows?.length
+          ? draft.researchRows.map((row) => ({ ...row, percentInput: Number(row.percentInput) || 15 }))
+          : [{ id: 3, percentInput: 15 }]
+      );
+      setCommunityRows(draft.communityRows || [{ id: 4 }]);
+      return true;
+    } catch (err) {
+      console.error(err);
+      return false;
+    }
+  };
+
+  useEffect(() => {
+    const fetchInstitutionSettings = async () => {
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/settings`);
+        const data = await response.json();
+
+        setInstitutionSettings(data);
+
+        const nextSession = data?.academicSession || '';
+        const nextSemester = data?.semester || 'First Semester';
+
+        setFormData((prev) => ({
+          ...prev,
+          session: nextSession,
+          semester: nextSemester,
+          pfNumber: user?.pfNumber || prev.pfNumber || localStorage.getItem('loggedInPF') || localStorage.getItem('pfNumber') || '',
+        }));
+
+        const hasDraft = loadDraft(nextSession, nextSemester);
+        if (!hasDraft) {
+          await fetchSubmissionForCurrentCycle(nextSession, nextSemester);
+        }
+      } catch (error) {
+        console.error(error);
+      } finally {
+        setDraftLoaded(true);
+      }
+    };
+
+    fetchInstitutionSettings();
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === 'semester') {
+      const nextSession = formData.session || institutionSettings?.academicSession || '';
+      setFormData((prev) => ({ ...prev, semester: value }));
+      if (nextSession && value) {
+        fetchSubmissionForCurrentCycle(nextSession, value);
+      }
+      if (errorMessage) setErrorMessage("");
+      return;
+    }
+
     if (name === 'school') {
       setFormData((prev) => ({ ...prev, school: value, department: '' }));
     } else {
@@ -222,12 +260,19 @@ useEffect(() => {
       calculateTotal(researchRows, 'percentInput')
     ).toFixed(2);
 
+    const activeIdentity = getActiveLecturerIdentity();
+    const { session: activeSession, semester: activeSemester } = getActiveInstitutionCycle();
     const lecturerSignatureDateValue =
       formData.lecturerSignatureDate ?? (formData.lecturerSignature ? new Date().toISOString() : null);
 
     return {
       lecturerDetails: {
         ...formData,
+        pfNumber: activeIdentity,
+        session: activeSession,
+        semester: activeSemester,
+        school: formData.school || user?.school || '',
+        department: formData.department || user?.department || '',
         lecturerSignatureDate: lecturerSignatureDateValue,
       },
       teaching: teachingRows,
@@ -323,14 +368,23 @@ useEffect(() => {
         setSubmissionStatus("Pending HOD"); 
         setRejectionComment('');
         setRejectedBy('');
-      } else {
-        setErrorMessage("❌ Failed to save. Check server connection.");
+        localStorage.removeItem(getDraftKey(formData.session, formData.semester));
+        return;
       }
+
+      let serverMessage = 'Failed to save. Check server connection.';
+      try {
+        const errorData = await response.json();
+        serverMessage = errorData?.message || errorData?.error || serverMessage;
+      } catch {
+        // Ignore JSON parsing errors and keep the fallback message.
+      }
+
+      setErrorMessage(`❌ ${serverMessage}`);
     } catch (error) {
       console.error("❌ Error connecting to server:", error);
       setErrorMessage("❌ Could not reach the database.");
     }
-    localStorage.removeItem(draftKey);
   };
 
 const handleClear = async () => {
@@ -341,10 +395,18 @@ const handleClear = async () => {
 
   if (!result.isConfirmed) return;
 
-  setFormData(initialFormData);
+  const nextSession = formData.session || institutionSettings?.academicSession || '';
+  const nextSemester = formData.semester || institutionSettings?.semester || 'First Semester';
+
+  setFormData((prev) => ({
+    ...initialFormData,
+    session: nextSession,
+    semester: nextSemester,
+    pfNumber: user?.pfNumber || prev.pfNumber || localStorage.getItem('loggedInPF') || localStorage.getItem('pfNumber') || '',
+  }));
   setTeachingRows([{ id: Date.now() }]);
   setAdminRows([{ id: Date.now() + 1 }]);
-  setResearchRows([{ id: Date.now() + 2 }]);
+  setResearchRows([{ id: Date.now() + 2, percentInput: 15 }]);
   setCommunityRows([{ id: Date.now() + 3 }]);
 
   setErrorMessage("");
@@ -353,7 +415,7 @@ const handleClear = async () => {
   setRejectedBy("");
   setSubmissionId(null);
 
-  localStorage.removeItem(draftKey);
+  localStorage.removeItem(getDraftKey(nextSession, nextSemester));
 };
 
   const isPending = submissionStatus && submissionStatus.startsWith('Pending');
@@ -455,10 +517,22 @@ const handleClear = async () => {
       row.id === rowId ? { ...row, role: selectedRole, qap: qapValue } : row
     ));
   };
+const handleResearchFieldChange = (rowId, fieldName, value) => {
+  const fixedPercentInput = 15;
 
+  setResearchRows(prevRows => prevRows.map(row => {
+    if (row.id === rowId) {
+      return {
+        ...row,
+        [fieldName]: value,
+        percentInput: fixedPercentInput,
+      };
+    }
+    return row;
+  }));
+};
 useEffect(() => {
-
-  if (!draftLoaded) return;
+  if (!draftLoaded || !formData.session || !formData.semester) return;
 
   if (
     submissionStatus &&
@@ -468,7 +542,7 @@ useEffect(() => {
   }
 
   localStorage.setItem(
-    draftKey,
+    getDraftKey(formData.session, formData.semester),
     JSON.stringify({
       formData,
       teachingRows,
@@ -567,7 +641,7 @@ useEffect(() => {
              </td>
               <td>
                 <input 
-                  type="text" 
+                  type = "time" 
                   value={row.time || ''} 
                   onChange={(e) => updateField('time', e.target.value)} 
                 />
@@ -679,13 +753,26 @@ useEffect(() => {
           setRows={setResearchRows}
           drawRowContent={(row, updateField) => (
             <>
-              <td><input type="text" value={row.projectNo || ''} onChange={(e) => updateField('projectNo', e.target.value)} /></td>
+              <td>
+                <input type="text" value={row.projectNo || ''} onChange={(e) => {
+                    updateField('projectNo', e.target.value);
+                    handleResearchFieldChange(row.id, 'projectNo', e.target.value);
+                  }}
+                />
+              </td>
               <td><input type="text" value={row.title || ''} onChange={(e) => updateField('title', e.target.value)} /></td>
               <td><input type="text" value={row.inKind || ''} onChange={(e) => updateField('inKind', e.target.value)} /></td>
               <td><input type="text" value={row.releaseTime || ''} onChange={(e) => updateField('releaseTime', e.target.value)} /></td>
               <td><input type="number" value={row.amount || ''} onChange={(e) => updateField('amount', e.target.value)} /></td>
               <td><input type="text" value={row.remark || ''} onChange={(e) => updateField('remark', e.target.value)} /></td>
-              <td><input type="number" value={row.percentInput || ''} onChange={(e) => updateField('percentInput', e.target.value)} /></td>
+              <td>
+                <input
+                  type="number"
+                  value={row.projectNo ? (row.percentInput ?? 15) : ''}
+                  readOnly
+                  style={{ backgroundColor: '#f9f9f9', cursor: 'not-allowed' }}
+                />
+              </td>
             </>
           )}
         />
@@ -769,7 +856,6 @@ useEffect(() => {
           <button type="button" className="btn btn-clear" onClick={handleClear}>Clear Form</button>
         </div>
       </form>
-
       {showModal && (
         <PreviewModal 
           data={previewData} 

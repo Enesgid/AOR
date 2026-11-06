@@ -22,177 +22,260 @@ import API_BASE_URL from "../../config/api";
 const DirectorDashboard = () => {
   const navigate = useNavigate();
   const currentUser = getCurrentUser();
-const isDirector = currentUser?.role === "Director";
-const [aiAssistant, setAiAssistant] = useState(
-  () =>
-    JSON.parse(
-      localStorage.getItem("aiAssistant")
-    ) ?? false
-);
+  const isDirector = currentUser?.role === "Director";
+  const [aiAssistant, setAiAssistant] = useState(
+    () => JSON.parse(localStorage.getItem("aiAssistant")) ?? false
+  );
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [submissions, setSubmissions] = useState([]);
-    const [sessions, setSessions] = useState([]);
-    const [selectedSession, setSelectedSession] = useState('');
+  const [sessions, setSessions] = useState([]);
+  const [institutionalCycle, setInstitutionalCycle] = useState({
+    session: "2025/2026",
+    semester: "First Semester",
+  });
+  const [selectedSession, setSelectedSession] = useState("2025/2026");
+  const [selectedSemester, setSelectedSemester] = useState("First Semester");
+  const [draftSession, setDraftSession] = useState("2025/2026");
+  const [draftSemester, setDraftSemester] = useState("First Semester");
+  const [settingsReady, setSettingsReady] = useState(false);
+  const [sessionsReady, setSessionsReady] = useState(false);
+  const [isCycleInitialized, setIsCycleInitialized] = useState(false);
+  const [isLoadingSubmissions, setIsLoadingSubmissions] = useState(false);
+  const [submissionError, setSubmissionError] = useState("");
   const [activeChart, setActiveChart] = useState(null);
   const reportRef = useRef(null);
+  const latestRequestIdRef = useRef(0);
+
   const handleExcelExport = () => {
-    exportDashboardExcel(
-      submissions,
-      schoolsData,
-      insights,
-      selectedSession
-    );
-};
-const [autoRefresh, setAutoRefresh] = useState(
-  JSON.parse(localStorage.getItem("autoRefresh")) ?? false
-);
-useEffect(() => {
-  const syncAutoRefresh = () => {
-    setAutoRefresh(
-      JSON.parse(localStorage.getItem("autoRefresh")) ?? false
-    );
+    exportDashboardExcel(submissions, schoolsData, insights, selectedSession, selectedSemester);
   };
 
-  const handleStorage = () => syncAutoRefresh();
-  const handleRefreshChange = () => syncAutoRefresh();
-
-  window.addEventListener("storage", handleStorage);
-  window.addEventListener("auto-refresh-changed", handleRefreshChange);
-
-  return () => {
-    window.removeEventListener("storage", handleStorage);
-    window.removeEventListener("auto-refresh-changed", handleRefreshChange);
-  };
-}, []);
-const handlePdfExport = () => {
-  exportDashboardPDF(reportRef, selectedSession);
-};
-
- const fetchSubmissions = async () => {
-  try {
-    const token = getCurrentToken();
-    let url = `${API_BASE_URL}/api/submissions`;
-    const params = new URLSearchParams();
-    if (selectedSession) params.append('session', selectedSession);
-    const query = params.toString();
-    if (query) url += `?${query}`;
-
-    const response = await fetch(url, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    const data = await response.json();
-
-    setSubmissions(data);
-
-  } catch (error) {
-    console.error(error);
-  }
-};
-useEffect(() => {
-  fetchSessions();
-  // fetchSubmissions will run when selectedSession is set by fetchSessions (see effect below)
-}, []);
-
-// refetch submissions whenever selectedSession changes
-useEffect(() => {
-  fetchSubmissions();
-}, [selectedSession]);
-
-const fetchSessions = async () => {
-  try {
-    const token = getCurrentToken();
-    const res = await fetch(`${API_BASE_URL}/api/submissions/sessions`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    const data = await res.json();
-    // If settings returned a currentSession, generate a contiguous range
-    // starting at 2025/2026 up to the currentSession (inclusive).
-    const buildSessionRangeTo = (endSession, startYear = 2025) => {
-      if (!endSession) return [];
-      const m = endSession.match(/(\d{4})\/(\d{4})/);
-      if (!m) return [];
-      const endYear = parseInt(m[1], 10);
-      const arr = [];
-      for (let y = startYear; y <= endYear; y++) {
-        arr.push(`${y}/${y + 1}`);
-      }
-      return arr;
-    };
-
-    if (data.currentSession) {
-      const range = buildSessionRangeTo(data.currentSession, 2025);
-      setSessions(range);
-      setSelectedSession(data.currentSession);
-    } else if (data.sessions && data.sessions.length > 0) {
-      setSessions(data.sessions);
-      setSelectedSession(data.sessions[0]);
-    } else {
-      setSessions([]);
-      setSelectedSession('');
-    }
-  } catch (err) {
-    console.error('Failed to load sessions', err);
-  }
-};
-useEffect(() => {
-  if (!autoRefresh) return;
-
-  fetchSubmissions();
-
-  const interval = setInterval(() => {
-    fetchSubmissions();
-  }, 30000); // every 30 seconds
-
-  return () => clearInterval(interval);
-}, [autoRefresh, selectedSession]);
-useEffect(() => {
-  const handleStorageChange = () => {
-    setAiAssistant(
-      JSON.parse(
-        localStorage.getItem("aiAssistant")
-      ) ?? false
-    );
-  };
-
-  window.addEventListener(
-    "storage",
-    handleStorageChange
+  const [autoRefresh, setAutoRefresh] = useState(
+    JSON.parse(localStorage.getItem("autoRefresh")) ?? false
   );
 
-  return () => {
-    window.removeEventListener(
-      "storage",
-      handleStorageChange
-    );
+  useEffect(() => {
+    const syncAutoRefresh = () => {
+      setAutoRefresh(JSON.parse(localStorage.getItem("autoRefresh")) ?? false);
+    };
+
+    const handleStorage = () => syncAutoRefresh();
+    const handleRefreshChange = () => syncAutoRefresh();
+
+    window.addEventListener("storage", handleStorage);
+    window.addEventListener("auto-refresh-changed", handleRefreshChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorage);
+      window.removeEventListener("auto-refresh-changed", handleRefreshChange);
+    };
+  }, []);
+
+  const handlePdfExport = () => {
+    exportDashboardPDF(reportRef, selectedSession, selectedSemester);
   };
-}, []);
+
+  const normalizeSessionOptions = (items = []) => {
+    const values = [];
+
+    items.forEach((value) => {
+      if (!value) return;
+      const sessionName = String(value).trim();
+      if (sessionName) values.push(sessionName);
+    });
+
+    return [...new Set(values)].sort((a, b) => {
+      const yearA = Number(String(a).match(/(\d{4})\//)?.[1] || 0);
+      const yearB = Number(String(b).match(/(\d{4})\//)?.[1] || 0);
+      return yearB - yearA;
+    });
+  };
+
+  const handleApplyView = () => {
+    const nextSession = draftSession?.trim();
+    const nextSemester = draftSemester?.trim();
+
+    if (!nextSession || !nextSemester) {
+      setSubmissionError("Please choose a valid session and semester.");
+      return;
+    }
+
+    if (!['First Semester', 'Second Semester'].includes(nextSemester)) {
+      setSubmissionError("Unsupported semester selection.");
+      return;
+    }
+
+    setSelectedSession(nextSession);
+    setSelectedSemester(nextSemester);
+    setSubmissionError("");
+  };
+
+  const fetchSubmissions = async () => {
+    if (!selectedSession || !selectedSemester) return;
+
+    const token = getCurrentToken();
+    const requestId = Date.now() + Math.random();
+    latestRequestIdRef.current = requestId;
+    setIsLoadingSubmissions(true);
+    setSubmissionError("");
+
+    try {
+      const params = new URLSearchParams();
+      params.append("session", selectedSession);
+      params.append("semester", selectedSemester);
+
+      const response = await fetch(`${API_BASE_URL}/api/submissions?${params.toString()}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (!response.ok) {
+        if (latestRequestIdRef.current !== requestId) return;
+        setSubmissions([]);
+        setSubmissionError(`Unable to load records for ${selectedSession} (${selectedSemester}).`);
+        return;
+      }
+
+      const data = await response.json();
+
+      if (!Array.isArray(data)) {
+        if (latestRequestIdRef.current !== requestId) return;
+        setSubmissions([]);
+        setSubmissionError("The server did not return a valid submissions list.");
+        return;
+      }
+
+      if (latestRequestIdRef.current !== requestId) return;
+      setSubmissions(data);
+      setSubmissionError("");
+    } catch (error) {
+      if (latestRequestIdRef.current !== requestId) return;
+      console.error(error);
+      setSubmissions([]);
+      setSubmissionError("Failed to load records for the selected academic cycle.");
+    } finally {
+      if (latestRequestIdRef.current === requestId) {
+        setIsLoadingSubmissions(false);
+      }
+    }
+  };
+
+  const fetchGlobalSettings = async () => {
+    try {
+      const token = getCurrentToken();
+      const response = await fetch(`${API_BASE_URL}/api/settings`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+
+      const nextSession = data?.academicSession || "2025/2026";
+      const nextSemester = data?.semester || "First Semester";
+
+      setInstitutionalCycle({ session: nextSession, semester: nextSemester });
+      setSelectedSession(nextSession);
+      setSelectedSemester(nextSemester);
+      setDraftSession(nextSession);
+      setDraftSemester(nextSemester);
+      setSettingsReady(true);
+    } catch (error) {
+      console.error("Failed to load institution settings", error);
+      setInstitutionalCycle({ session: "2025/2026", semester: "First Semester" });
+      setSelectedSession("2025/2026");
+      setSelectedSemester("First Semester");
+      setDraftSession("2025/2026");
+      setDraftSemester("First Semester");
+      setSettingsReady(true);
+    }
+  };
+
+  const fetchSessions = async () => {
+    try {
+      const token = getCurrentToken();
+      const res = await fetch(`${API_BASE_URL}/api/submissions/sessions`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      const sessionOptions = normalizeSessionOptions([
+        data?.currentSession,
+        ...(Array.isArray(data?.sessions) ? data.sessions : []),
+      ]);
+
+      setSessions(sessionOptions);
+      if (sessionOptions.length > 0 && !selectedSession) {
+        setSelectedSession(sessionOptions[0]);
+        setDraftSession(sessionOptions[0]);
+      }
+      setSessionsReady(true);
+    } catch (err) {
+      console.error("Failed to load sessions", err);
+      setSessions([]);
+      setSessionsReady(true);
+    }
+  };
+
+  useEffect(() => {
+    fetchGlobalSettings();
+    fetchSessions();
+  }, []);
+
+  useEffect(() => {
+    setIsCycleInitialized(settingsReady && sessionsReady);
+  }, [settingsReady, sessionsReady]);
+
+  useEffect(() => {
+    if (!isCycleInitialized || !selectedSession || !selectedSemester) return;
+    fetchSubmissions();
+  }, [isCycleInitialized, selectedSession, selectedSemester]);
+
+  useEffect(() => {
+    if (!autoRefresh || !isCycleInitialized || !selectedSession || !selectedSemester) return;
+
+    const interval = setInterval(() => {
+      fetchSubmissions();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [autoRefresh, isCycleInitialized, selectedSession, selectedSemester]);
+
+  useEffect(() => {
+    const handleStorageChange = () => {
+      setAiAssistant(JSON.parse(localStorage.getItem("aiAssistant")) ?? false);
+    };
+
+    window.addEventListener("storage", handleStorageChange);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, []);
+
+  const isHistoricalView =
+    selectedSession !== institutionalCycle.session ||
+    selectedSemester !== institutionalCycle.semester;
 
   const dashboardStats = getDashboardStats(submissions);
-  const pieChartData = getPieChartData(submissions); 
- const {schoolsData, lineData, insights,} = processDashboardAnalytics(submissions);
+  const pieChartData = getPieChartData(submissions);
+  const { schoolsData, lineData, insights } = processDashboardAnalytics(submissions);
 
   const pendingHod = pieChartData.find(item => item.name === "Pending HOD")?.value || 0;
   const pendingDean = pieChartData.find(item => item.name === "Pending Dean")?.value || 0;
   const pendingDirector = pieChartData.find(item => item.name === "Pending Director")?.value || 0;
   const [searchTerm, setSearchTerm] = useState("");
-  
-  // Total count for progress bar
+
   const totalSubmissions = submissions.length;
   const dashboardFaculties = [...schoolsData].sort((a, b) => b.effort - a.effort).slice(0, 4);
+  const facultiesQuery = new URLSearchParams({
+    session: selectedSession,
+    semester: selectedSemester,
+  }).toString();
   const filteredSubmissions = submissions.filter((sub) => {
-  const fullName = `${sub.lecturerDetails?.firstName || ""} ${sub.lecturerDetails?.lastName || ""}`;
+    const fullName = `${sub.lecturerDetails?.firstName || ""} ${sub.lecturerDetails?.lastName || ""}`;
 
-  return (
-    fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    sub.lecturerDetails?.pfNumber
-      ?.toLowerCase()
-      .includes(searchTerm.toLowerCase()) ||
-    sub.lecturerDetails?.department
-      ?.toLowerCase()
-      .includes(searchTerm.toLowerCase())
-  );
-});
+    return (
+      fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sub.lecturerDetails?.pfNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      sub.lecturerDetails?.department?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   return (
     <div className="flex bg-gray-100 dark:bg-gray-800 dark:text-white min-h-screen">
@@ -200,7 +283,6 @@ useEffect(() => {
       <Sidebar sidebarOpen={sidebarOpen} setSidebarOpen={setSidebarOpen} />
 
       <div className="flex-1 lg:ml-64 p-4 sm:p-6 pt-20 lg:pt-6">
-        {/* Mobile Toggle */}
         {!sidebarOpen && (
           <button
             className="lg:hidden fixed top-4 left-4 z-[60] bg-white p-3 rounded-xl shadow-md border border-gray-200 cursor-pointer"
@@ -210,24 +292,37 @@ useEffect(() => {
           </button>
         )}
 
-        {/* Topbar */}
         <Topbar />
-        {/* Header */}
         <div className="mb-8">
           <DashboardHeader
             title="Director Dashboard"
-            subtitle="Monitor overall institutional performance"  
+            subtitle="Monitor overall institutional performance"
             onExcelExport={handleExcelExport}
             onPdfExport={handlePdfExport}
             sessions={sessions}
             selectedSession={selectedSession}
+            selectedSemester={selectedSemester}
             setSelectedSession={setSelectedSession}
+            setSelectedSemester={setSelectedSemester}
+            draftSession={draftSession}
+            setDraftSession={setDraftSession}
+            draftSemester={draftSemester}
+            setDraftSemester={setDraftSemester}
+            onApplyView={handleApplyView}
+            isHistoricalView={isHistoricalView}
+            isLoading={isLoadingSubmissions}
+            submissionError={submissionError}
             searchTerm={searchTerm}
             setSearchTerm={setSearchTerm}
           />
         </div>
 
-        {/* Stat Cards */}
+        {submissionError && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {submissionError}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4 mb-8">
           {dashboardStats.map((item, index) => (
             <StatCard
@@ -247,6 +342,7 @@ useEffect(() => {
             />
           ))}
         </div>
+
 
         {/* Charts Backdrop Blur */}
         {activeChart && (
@@ -286,7 +382,7 @@ useEffect(() => {
                 <h2 className="text-lg font-semibold text-gray-800">School Performance Summary</h2>
                 <p className="text-sm text-gray-500 mt-1">Top 4 schools by effort score</p>
               </div>
-              <Link to="/faculties" className="decoration-transparent">
+              <Link to={`/faculties?${facultiesQuery}`} className="decoration-transparent">
                 <button className="flex btn btn-preview">
                   View All
                   <ArrowRight size={16} className="ml-2" />
@@ -437,10 +533,11 @@ useEffect(() => {
           <DirectorPdfReport
               ref={reportRef}
               submissions={submissions}
-              pieData={pieChartData}
+              pieChartData={pieChartData}
               schoolData={schoolsData}
               lineData={lineData}
               session={selectedSession}
+              semester={selectedSemester}
           />
 
           </div>

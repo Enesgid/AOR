@@ -31,7 +31,7 @@ const ForgotPassword = () => {
       );
       const data = await response.json();
       if (!response.ok) {
-        setMessage(data.message);
+        await errorAlert(data.message || "Unable to reset password.");
       } 
       else {
        await successAlert(data.message);
@@ -73,7 +73,7 @@ const ForgotPassword = () => {
         <div id="format">
           <div>
             <label className="login-label">
-              PF Number
+              Official PF Number
             </label>
 
             <input
@@ -81,7 +81,7 @@ const ForgotPassword = () => {
               className="login-input"
               value={pfNumber}
               onChange={(e) =>
-                setPfNumber(e.target.value)
+                setPfNumber(e.target.value.toUpperCase())
               }
               required
             />

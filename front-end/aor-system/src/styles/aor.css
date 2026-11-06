@@ -715,7 +715,7 @@ border-radius: 10px;
 box-shadow: 0 4px 15px rgba(0,0,0,0.1);
 }
 
-@media print {
+/* @media print {
   body * { visibility: hidden; }
   .modal-content, .modal-content * { visibility: visible; }
   .modal-content {
@@ -727,7 +727,7 @@ box-shadow: 0 4px 15px rgba(0,0,0,0.1);
     box-shadow: none; }
   .modal-header-actions { 
     display: none; }
-}
+} */
 @media (max-width: 800px) {
   .form-grid { 
     grid-template-columns: 1fr; 

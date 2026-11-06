@@ -7,42 +7,51 @@ const ExportDropdown = ({
   sessions = [],
   selectedSession,
   setSelectedSession = () => {},
+  selectedSemester,
+  setSelectedSemester = () => {},
+  draftSession,
+  setDraftSession = () => {},
+  draftSemester,
+  setDraftSemester = () => {},
+  onApplyView = () => {},
+  isHistoricalView = false,
+  isLoading = false,
+  submissionError = "",
 }) => {
   const [open, setOpen] = useState(false);
   const dropdownRef = useRef(null);
-  const [localSession, setLocalSession] = useState(selectedSession || "");
+  const [localSession, setLocalSession] = useState(draftSession || selectedSession || "");
+  const [localSemester, setLocalSemester] = useState(draftSemester || selectedSemester || "First Semester");
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setOpen(false);
       }
     };
 
-    document.addEventListener(
-      "mousedown",
-      handleClickOutside
-    );
+    document.addEventListener("mousedown", handleClickOutside);
 
-    return () =>
-      document.removeEventListener(
-        "mousedown",
-        handleClickOutside
-      );
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
   useEffect(() => {
-    setLocalSession(selectedSession || "");
-  }, [selectedSession]);
+    setLocalSession(draftSession || selectedSession || "");
+  }, [draftSession, selectedSession]);
+
+  useEffect(() => {
+    setLocalSemester(draftSemester || selectedSemester || "First Semester");
+  }, [draftSemester, selectedSemester]);
+
+  const handleApply = () => {
+    setSelectedSession(localSession);
+    setSelectedSemester(localSemester);
+    onApplyView();
+    setOpen(false);
+  };
 
   return (
-    <div
-      className="relative"
-      ref={dropdownRef}
-    >
+    <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setOpen(!open)}
         className="
@@ -64,43 +73,68 @@ const ExportDropdown = ({
       </button>
 
       {open && (
-        <div
-          className="
-            absolute
-            right-0
-            mt-2
-            w-36
-           border-collapse
-            rounded-sm
-            shadow-lg
-            z-50
-            overflow-hidden
-          "
-        >
-          <div className="px-3 py-2 bg-white">
-            <label className="text-xs text-gray-500">Select session</label>
-            <select
-              value={localSession}
-              onChange={(e) => {
-                setLocalSession(e.target.value);
-                setSelectedSession(e.target.value);
-              }}
-              className="w-full mt-2 p-2 border rounded"
-            >
-              <option value="">session</option>
-              {sessions.map((s, i) => (
-                <option key={i} value={s}>{s}</option>
-              ))}
-            </select>
+        <div className="absolute right-0 mt-2 w-48 border-collapse rounded-sm shadow-lg z-50 overflow-hidden">
+          <div className="px-3 py-2 bg-white space-y-3">
+            <div>
+              <label className="text-xs text-gray-500">Select session</label>
+              <select
+                value={localSession}
+                onChange={(e) => {
+                  const nextValue = e.target.value;
+                  setLocalSession(nextValue);
+                  setDraftSession(nextValue);
+                }}
+                className="w-full mt-2 p-2 border rounded"
+              >
+                <option value="">session</option>
+                {sessions.map((s, i) => (
+                  <option key={`${s}-${i}`} value={s}>{s}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500">Select semester</label>
+              <select
+                value={localSemester}
+                onChange={(e) => {
+                  const nextValue = e.target.value;
+                  setLocalSemester(nextValue);
+                  setDraftSemester(nextValue);
+                }}
+                className="w-full mt-2 p-2 border rounded"
+              >
+                <option value="First Semester">First Semester</option>
+                <option value="Second Semester">Second Semester</option>
+              </select>
+            </div>
+            <div className="pt-1">
+              <button
+                type="button"
+                onClick={handleApply}
+                disabled={!localSession || !localSemester || isLoading}
+                className={`w-full rounded-md px-3 py-2 text-sm font-medium text-white ${!localSession || !localSemester || isLoading ? "bg-slate-400 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-700"}`}
+              >
+                {isLoading ? "Loading..." : "View Records"}
+              </button>
+            </div>
+            {isHistoricalView && (
+              <div className="text-[11px] text-amber-700">
+                Historical view active
+              </div>
+            )}
+            {submissionError && (
+              <div className="text-[11px] text-red-600">{submissionError}</div>
+            )}
           </div>
+
           <div className="border-t">
             <button
               onClick={() => {
                 setOpen(false);
                 onExcelExport();
               }}
-              disabled={!localSession}
-              className={`w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-gray-100 ${!localSession ? 'opacity-60 cursor-not-allowed' : ''}`}
+              disabled={!selectedSession || !selectedSemester}
+              className={`w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-gray-100 ${!selectedSession || !selectedSemester ? "opacity-60 cursor-not-allowed" : ""}`}
             >
               <FileSpreadsheet size={18} />
               Download Excel
@@ -111,8 +145,8 @@ const ExportDropdown = ({
                 setOpen(false);
                 onPdfExport();
               }}
-              disabled={!localSession}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 ${!localSession ? 'opacity-60 cursor-not-allowed' : ''}`}
+              disabled={!selectedSession || !selectedSemester}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 ${!selectedSession || !selectedSemester ? "opacity-60 cursor-not-allowed" : ""}`}
             >
               <FileText size={18} />
               Download PDF Analysis

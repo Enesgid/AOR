@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { useParams } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { useParams, useLocation } from "react-router-dom";
 import { Menu } from "lucide-react";
 import Sidebar from "../analysis/Sidebar";
 import Topbar from "../analysis/TopBar";
@@ -8,13 +8,24 @@ import { getCurrentToken } from "../../../utils/session";
 import API_BASE_URL from "../../../config/api";
 
 const DepartmentDetails = () => {
+  const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const { school, department } = useParams(); // URL params: /departments/:school/:department
+  const [cycleInfo, setCycleInfo] = useState({ session: "", semester: "" });
+  const requestIdRef = useRef(0);
   
   // Real database states
   const [lecturersList, setLecturersList] = useState([]);
   const [deptMetrics, setDeptMetrics] = useState({ hod: "Not Signed", totalInput: 0, effort: 0 });
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const nextSession = params.get("session")?.trim() || "";
+    const nextSemester = params.get("semester")?.trim() || "";
+    setCycleInfo({ session: nextSession, semester: nextSemester });
+  }, [location.search]);
 
   useEffect(() => {
     const normalizeText = (value = "") =>
@@ -26,15 +37,44 @@ const DepartmentDetails = () => {
         .trim();
 
     const fetchLiveDepartmentData = async () => {
+      const params = new URLSearchParams(location.search);
+      const nextSession = params.get("session")?.trim() || "";
+      const nextSemester = params.get("semester")?.trim() || "";
+      const hasSession = Boolean(nextSession);
+      const hasSemester = Boolean(nextSemester);
+      const requestId = Date.now() + Math.random();
+      requestIdRef.current = requestId;
+
+      if (hasSession !== hasSemester) {
+        setError("The selected academic cycle is incomplete. Please choose both session and semester.");
+        setLecturersList([]);
+        setDeptMetrics({ hod: "Not Signed", totalInput: 0, effort: 0 });
+        setLoading(false);
+        return;
+      }
+
       try {
         const token = getCurrentToken();
-        const response = await fetch(`${API_BASE_URL}/api/submissions`, {
+        const queryParams = new URLSearchParams();
+        if (hasSession && hasSemester) {
+          queryParams.set("session", nextSession);
+          queryParams.set("semester", nextSemester);
+        }
+
+        const response = await fetch(`${API_BASE_URL}/api/submissions${queryParams.toString() ? `?${queryParams.toString()}` : ""}`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
         });
+
+        if (!response.ok) {
+          throw new Error("Unable to load department submissions for the selected cycle.");
+        }
+
         const submissions = await response.json();
-        const matchingSubmissions = submissions.filter((sub) => {
+        if (!requestIdRef.current || requestIdRef.current !== requestId) return;
+
+        const matchingSubmissions = Array.isArray(submissions) ? submissions.filter((sub) => {
           const subSchool = sub.lecturerDetails?.school || "";
           const subDept = sub.lecturerDetails?.department || "";
           const cleanParamDept = normalizeText(department);
@@ -43,7 +83,9 @@ const DepartmentDetails = () => {
             normalizeText(subSchool) === normalizeText(school) &&
             normalizeText(subDept) === cleanParamDept
           );
-        });
+        }) : [];
+
+        setError("");
 
         // Helper to sum array fields safely
         const sumField = (arr, key) => {
@@ -96,15 +138,21 @@ const DepartmentDetails = () => {
         setLecturersList(formattedLecturers);
       } catch (error) {
         console.error("Error generating backend department views:", error);
+        if (!requestIdRef.current || requestIdRef.current !== requestId) return;
+        setError("The selected academic cycle could not be loaded.");
+        setLecturersList([]);
+        setDeptMetrics({ hod: "Not Signed", totalInput: 0, effort: 0 });
       } finally {
-        setLoading(false);
+        if (!requestIdRef.current || requestIdRef.current === requestId) {
+          setLoading(false);
+        }
       }
     };
 
     if (school && department) {
       fetchLiveDepartmentData();
     }
-  }, [school, department]);
+  }, [school, department, location.search]);
 
   if (loading) {
     return (
@@ -115,6 +163,8 @@ const DepartmentDetails = () => {
       </div>
     );
   }
+
+  const cycleLabel = cycleInfo.session && cycleInfo.semester ? `${cycleInfo.session} • ${cycleInfo.semester}` : "";
 
   // Safe checks against empty dynamic states mapping calculations
   const totalLecturers = lecturersList.length;
@@ -160,6 +210,18 @@ const DepartmentDetails = () => {
           showSearch={false}
           showExport ={false}
         />
+
+        {cycleLabel && (
+          <div className="mb-4 rounded-xl border border-purple-200 bg-purple-50 px-4 py-3 text-sm font-medium text-purple-700">
+            Academic cycle: {cycleLabel}
+          </div>
+        )}
+
+        {error && (
+          <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
         
         <div className="mb-6">
           <span

@@ -11,6 +11,7 @@ const DirectorPdfReport = forwardRef(({
     schoolData,
     lineData,
     session = '',
+    semester = '',
   },
 ref
 ) => {
@@ -34,8 +35,10 @@ Assignment of Responsibility System
 Director Analytics Report
 </h3>
 
-{session && (
-  <p className="text-center text-sm text-gray-600 mb-4">Session: {session}</p>
+{(session || semester) && (
+  <p className="text-center text-sm text-gray-600 mb-4">
+    Session: {session || "N/A"} • Semester: {semester || "N/A"}
+  </p>
 )}
 
 <div className="grid grid-cols-5 gap-4 mb-8">

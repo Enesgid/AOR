@@ -94,11 +94,12 @@ sessionStorage.setItem(
             <label className='login-label'>PF Number</label>
             <input
               type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
               value={pfNumber}
               onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, "").slice(0, 6);
+                const value = e.target.value
+                  .toUpperCase()
+                  .replace(/[^0-9]/g, "")
+                  .slice(0, 12);
                 setPfNumber(value);
               }}
               className="login-input"

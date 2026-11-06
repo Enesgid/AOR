@@ -285,11 +285,18 @@ const deleteAllSubmissions = async () => {
 >
         <div className="flex flex-col md:flex-row md:items-center gap-6">
 
-    <img
-      src="https://ui-avatars.com/api/?name=Admin"
-      alt="Director"
-      className="w-24 h-24 rounded-full"
-    />
+      <img
+        src="https://ui-avatars.com/api/?name=ADMIN"
+        alt={
+          user.role === "Director"
+            ? "Director"
+            : user.role === "Dean"
+              ? "Dean"
+              : user.role === "HOD"
+                ? "HOD"
+                : "Admin" }
+  className="w-24 h-24 rounded-full"
+/>
 
     <div className="flex-1">
 
@@ -573,13 +580,15 @@ const deleteAllSubmissions = async () => {
           />
 
           <input
-            type="number"
+            type="text"
+            inputMode="text"
+            pattern="[A-Za-z0-9-]+"
             value={user.pfNumber || ""}
             placeholder="PF Number"
             onChange={(e) =>
               setUser({
                 ...user,
-                pfNumber: e.target.value,
+                pfNumber: e.target.value.toUpperCase(),
               })
             }
             className="w-[92%] border rounded-xl px-4 py-3"
@@ -611,7 +620,7 @@ const deleteAllSubmissions = async () => {
                   };
 
                   if (!payload.name || !payload.pfNumber) {
-                    alert("Name and PF Number are required.");
+                    await errorAlert("Name and PF Number are required.");
                     return;
                   }
 
@@ -630,7 +639,7 @@ const deleteAllSubmissions = async () => {
                   const data = await response.json();
 
                   if (!response.ok) {
-                    alert(data.message || "Unable to update profile.");
+                    await errorAlert(data.message || "Unable to update profile.");
                     return;
                   }
 
@@ -639,7 +648,7 @@ const deleteAllSubmissions = async () => {
                   setShowProfileModal(false);
                 } catch (err) {
                   console.error(err);
-                  alert("Unable to update profile.");
+                  await errorAlert("Unable to update profile.");
                 }
               }}
             className="btn btn-save px-5 py-2 rounded-xl"

@@ -13,7 +13,23 @@ const Settings = require("./models/Settings");
 const schoolDepartments = require("./models/schoolDepartments");
 const aiRoutes = require('./routes/aiRoutes');
 
-// this prevent backdoor access to the API and only allows .
+const normalizePfValue = (value) => String(value ?? '').trim().toUpperCase();
+
+const findPfConflict = async ({ userId, pfValue }) => {
+  const normalized = normalizePfValue(pfValue);
+  if (!normalized) {
+    return null;
+  }
+
+  // Temporary login PF values are not permanent identity records.
+  // Only an official PF already assigned to another user should block update.
+  return User.findOne({
+    _id: { $ne: userId },
+    officialPfNumber: normalized,
+  });
+};
+
+// this prevent backdoor access to the API and only allows authorized logged in.
 app.use(cors()); 
 app.use(express.json()); 
 app.use('/api/ai', aiRoutes);
@@ -81,63 +97,158 @@ app.post('/api/register', async (req, res) => {
 
 // --- LOGIN A USER ---
 app.post('/api/login', async (req, res) => {
-  try {
-    const { pfNumber, password, role } = req.body;
+  try {
+    const { pfNumber, password, role } = req.body;
+    const normalizedPf = normalizePfValue(pfNumber);
+    const generalPfNumber = role === "Lecturer" ? normalizedPf : role === "Director" ? `${role?.charAt(0)?.toUpperCase()}${pfNumber}R` : `${role?.charAt(0)?.toUpperCase()}${pfNumber}`;
+    let user = null;
 
-    const user = await User.findOne({ pfNumber });
-    if (!user) {
-      return res.status(404).json({ message: "User not found" });
-    }
+    // Completed users must authenticate by their official PF because that is the active login identity.
+    user = await User.findOne({
+      officialPfNumber: generalPfNumber,
+      role,
+      firstLogin: false,
+    });
 
-    if (user.role !== role) {
-      return res.status(403).json({ message: `Access denied. You are registered as a ${user.role}, not a ${role}.` });
-    }
+    // First-time users still authenticate by their temporary PF.
+    if (!user) {
+      user = await User.findOne({
+        pfNumber: generalPfNumber,
+        role,
+        firstLogin: true,
+      });
+    }
+    // Legacy lecturer fallback: a completed lecturer with no official PF still logs in by original PF + role.
+    if (!user) {
+      user = await User.findOne({
+        pfNumber: generalPfNumber,
+        role: 'Lecturer',
+        firstLogin: false,
+        officialPfNumber: null,
+      });
+    }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-    if (!isMatch) {
-      return res.status(400).json({ message: " Incorrect password or PF Number. " });
-    }
+    if (!user) {
+      return res.status(404).json({
+        message: "User has been assigned or User not found"
+      });
+    }
 
-    // generrate a json web token (JWT) that includes the user's ID, PF number, role, name, department, and school. This token will be used to authenticate future requests to protected routes.
-    const token = jwt.sign(
-      { 
-        id: user._id, 
-        pfNumber: user.pfNumber, 
-        role: user.role, 
-        name: user.name,
-        department: user.department, 
-        school: user.school 
-      }, 
-      'your_super_secret_key', 
-      { expiresIn: '8h' } 
-    );
+    if (user.role !== role) {
+      return res.status(403).json({
+        message: `Access denied. You are registered as a ${user.role}, not a ${role}.`
+      });
+    }
 
-    res.status(200).json({ 
-      message: "Login successful!", 
-      token, 
-      user: { name: user.name, 
-      pfNumber: user.pfNumber, 
-      role: user.role,
-      department: user.department,
-      school: user.school,
-      firstLogin: user.firstLogin
-      } 
-    });
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(400).json({ message: " Incorrect password or PF Number. " });
+    }
 
-  } catch (error) {
-    console.error("Login Error:", error);
-    res.status(500).json({ message: "Server error during login." });
-  }
+    user.lastLoginAt = new Date();
+    await user.save();
+
+    const activePfNumber = user.officialPfNumber || user.pfNumber;
+
+    const token = jwt.sign(
+      {
+        id: user._id,
+        pfNumber: activePfNumber,
+        officialPfNumber: user.officialPfNumber || null,
+        role: user.role,
+        name: user.name,
+        department: user.department,
+        school: user.school,
+        firstLogin: user.firstLogin,
+      },
+      'your_super_secret_key',
+      { expiresIn: '8h' }
+    );
+
+    res.status(200).json({
+      message: "Login successful!",
+      token,
+      user: {
+        name: user.name,
+        pfNumber: activePfNumber,
+        officialPfNumber: user.officialPfNumber || null,
+        role: user.role,
+        department: user.department,
+        school: user.school,
+        firstLogin: user.firstLogin,
+      }
+    });
+  } catch (error) {
+    console.error("Login Error:", error);
+    res.status(500).json({ message: "Server error during login." });
+  }
 });
 
-// --- GET ALL SUBMISSIONS (Director Dashboard) ---
-app.get('/api/submissions',verifyToken, async (req, res) => {
-  try {
-    const submissions = await Submission.find().sort({ createdAt: -1 });
-    res.json(submissions);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch submissions' });
-  }
+// --- GET SUBMISSIONS FOR THE ACTIVE OR HISTORICAL ACADEMIC CYCLE ---
+app.get('/api/submissions', verifyToken, async (req, res) => {
+  try {
+    const requestedSession = req.query.session ? String(req.query.session).trim() : '';
+    const requestedSemester = req.query.semester ? String(req.query.semester).trim() : '';
+    const supportedSemesters = ['First Semester', 'Second Semester'];
+
+    const settings = await Settings.findOne();
+    const activeSession = settings?.academicSession || '2025/2026';
+    const activeSemester = settings?.semester || 'First Semester';
+
+    const hasSession = Boolean(requestedSession);
+    const hasSemester = Boolean(requestedSemester);
+
+    if (hasSession !== hasSemester) {
+      return res.status(400).json({
+        message: 'Both session and semester are required together.',
+      });
+    }
+
+    if (!hasSession && !hasSemester) {
+      const submissions = await Submission.find({
+        'lecturerDetails.session': activeSession,
+        'lecturerDetails.semester': activeSemester,
+      }).sort({ createdAt: -1 });
+
+      return res.json(submissions);
+    }
+
+    if (!supportedSemesters.includes(requestedSemester)) {
+      return res.status(400).json({
+        message: 'Unsupported semester. Use First Semester or Second Semester.',
+      });
+    }
+
+    if (req.user.role !== 'Director') {
+      const requestedCycle = {
+        session: requestedSession,
+        semester: requestedSemester,
+      };
+      const activeCycle = {
+        session: activeSession,
+        semester: activeSemester,
+      };
+
+      if (
+        requestedCycle.session !== activeCycle.session ||
+        requestedCycle.semester !== activeCycle.semester
+      ) {
+        return res.status(403).json({
+          message: 'You are only allowed to view the active academic cycle.',
+        });
+      }
+    }
+
+    const submissions = await Submission.find({
+      'lecturerDetails.session': requestedSession,
+      'lecturerDetails.semester': requestedSemester,
+    }).sort({ createdAt: -1 });
+
+    return res.json(submissions);
+  } catch (error) {
+    console.error('Error fetching submissions:', error);
+    return res.status(500).json({ error: 'Failed to fetch submissions' });
+  }
 });
 
 // Get distinct sessions (grouped) with most recent activity
@@ -171,6 +282,40 @@ app.get('/api/users/count', verifyToken, async (req, res) => {
   } catch (error) {
     console.error('Error counting lecturer users:', error);
     res.status(500).json({ error: 'Failed to count lecturer users' });
+  }
+});
+
+app.get('/api/submissions/lecturer/:pfNumber', verifyToken, async (req, res) => {
+  try {
+    const requestedPf = String(req.params.pfNumber || '').trim();
+    const activePf = String(req.user?.officialPfNumber || req.user?.pfNumber || '').trim();
+
+    if (req.user?.role === 'Lecturer' && requestedPf && activePf && requestedPf.toUpperCase() !== activePf.toUpperCase()) {
+      return res.status(403).json({ message: 'You can only access your own submission records.' });
+    }
+
+    const query = {
+      'lecturerDetails.pfNumber': requestedPf,
+    };
+
+    if (req.query.session) {
+      query['lecturerDetails.session'] = req.query.session;
+    }
+
+    if (req.query.semester) {
+      query['lecturerDetails.semester'] = req.query.semester;
+    }
+
+    const submission = await Submission.findOne(query).sort({ createdAt: -1 });
+
+    if (!submission) {
+      return res.status(404).json({ message: 'No submission found for the selected academic cycle.' });
+    }
+
+    res.json(submission);
+  } catch (error) {
+    console.error('Error fetching lecturer submission:', error);
+    res.status(500).json({ message: 'Server error fetching lecturer submission' });
   }
 });
 
@@ -223,26 +368,6 @@ app.get(
   }
 );
 
-// --- SAVE A NEW FORM ---
-app.get('/api/submissions',verifyToken, async (req, res) => {
-  try {
-    const filter = {};
-    // allow optional filtering by session and semester
-    if (req.query.session) {
-      filter['lecturerDetails.session'] = req.query.session;
-    }
-    if (req.query.semester) {
-      filter['lecturerDetails.semester'] = req.query.semester;
-    }
-
-    const submissions = await Submission.find(filter).sort({ createdAt: -1 });
-    res.json(submissions);
-
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch submissions' });
-  }
-});
-
 const normalizeSignatureDate = (value) => {
   if (value === null || value === undefined || value === '') {
     return null;
@@ -268,18 +393,266 @@ const prepareSubmissionPayload = (incoming) => {
   return payload;
 };
 
+const getActiveAcademicCycle = async () => {
+  const settings = await Settings.findOne();
+  const activeSession = settings?.academicSession || '2025/2026';
+  const activeSemester = settings?.semester || 'First Semester';
+
+  return {
+    activeSession,
+    activeSemester,
+  };
+};
+
+app.post('/api/submissions', verifyToken, async (req, res) => {
+  try {
+    if (req.user.role !== 'Lecturer') {
+      return res.status(403).json({ message: 'Only lecturers can submit AOR forms.' });
+    }
+
+    const userRecord = await User.findById(req.user.id);
+    if (!userRecord) {
+      return res.status(401).json({ message: 'Authenticated lecturer record not found.' });
+    }
+
+    const activePf = normalizePfValue(userRecord.officialPfNumber || userRecord.pfNumber);
+    const incoming = req.body || {};
+    const incomingLecturerDetails = incoming.lecturerDetails || {};
+    const submittedPf = normalizePfValue(incomingLecturerDetails.pfNumber);
+    const submittedSchool = String(incomingLecturerDetails.school || '').trim();
+    const submittedDepartment = String(incomingLecturerDetails.department || '').trim();
+    const expectedSchool = String(userRecord.school || '').trim();
+    const expectedDepartment = String(userRecord.department || '').trim();
+
+    if (!activePf) {
+      return res.status(400).json({ message: 'Authenticated lecturer PF number is missing.' });
+    }
+
+    if (submittedPf && submittedPf !== activePf) {
+      return res.status(403).json({ message: 'You cannot create a submission using another lecturer PF number.' });
+    }
+
+    // if (!expectedSchool || !expectedDepartment) {
+    //   return res.status(400).json({ message: 'Authenticated lecturer school and department are not assigned.' });
+    // }
+
+    // if (submittedSchool && submittedSchool.toLowerCase() !== expectedSchool.toLowerCase()) {
+    //   return res.status(403).json({ message: 'Submitted school does not match your assigned school.' });
+    // }
+
+    // if (submittedDepartment && submittedDepartment.toLowerCase() !== expectedDepartment.toLowerCase()) {
+    //   return res.status(403).json({ message: 'Submitted department does not match your assigned department.' });
+    // }
+
+    const { activeSession, activeSemester } = await getActiveAcademicCycle();
+    const requestedSession = String(incomingLecturerDetails.session || '').trim();
+    const requestedSemester = String(incomingLecturerDetails.semester || '').trim();
+
+    if (!requestedSession || !requestedSemester) {
+      return res.status(400).json({ message: 'Academic session and semester are required.' });
+    }
+
+    if (!['First Semester', 'Second Semester'].includes(requestedSemester)) {
+      return res.status(400).json({ message: 'Unsupported semester. Use First Semester or Second Semester.' });
+    }
+
+    if (requestedSession !== activeSession || requestedSemester !== activeSemester) {
+      return res.status(400).json({ message: 'Submission cycle does not match the active institutional academic cycle.' });
+    }
+
+    const duplicate = await Submission.findOne({
+      'lecturerDetails.pfNumber': activePf,
+      'lecturerDetails.session': activeSession,
+      'lecturerDetails.semester': activeSemester,
+    });
+
+    if (duplicate) {
+      return res.status(400).json({ message: 'A submission for this session and semester already exists for this lecturer.' });
+    }
+
+    const sanitizedLecturerDetails = {
+      firstName: String(incomingLecturerDetails.firstName || '').trim(),
+      lastName: String(incomingLecturerDetails.lastName || '').trim(),
+      middleInitial: String(incomingLecturerDetails.middleInitial || '').trim(),
+      appointment: String(incomingLecturerDetails.appointment || '').trim(),
+      pfNumber: activePf,
+      school: expectedSchool,
+      department: expectedDepartment,
+      position: String(incomingLecturerDetails.position || '').trim(),
+      phone: String(incomingLecturerDetails.phone || '').trim(),
+      salaryGrade: String(incomingLecturerDetails.salaryGrade || '').trim(),
+      teachingCredit: String(incomingLecturerDetails.teachingCredit || '').trim(),
+      leave: String(incomingLecturerDetails.leave || '').trim(),
+      session: activeSession,
+      semester: activeSemester,
+      lecturerSignature: String(incomingLecturerDetails.lecturerSignature || incoming.lecturerSignature || '').trim(),
+      lecturerSignatureDate: normalizeSignatureDate(
+        incomingLecturerDetails.lecturerSignatureDate || incoming.lecturerSignatureDate ||
+        (incomingLecturerDetails.lecturerSignature || incoming.lecturerSignature ? new Date() : null)
+      ),
+    };
+
+    const cleanPayload = {
+      lecturerDetails: sanitizedLecturerDetails,
+      teaching: Array.isArray(incoming.teaching) ? incoming.teaching : [],
+      administrativeDuties: Array.isArray(incoming.administrativeDuties) ? incoming.administrativeDuties : [],
+      research: Array.isArray(incoming.research) ? incoming.research : [],
+      communityService: Array.isArray(incoming.communityService) ? incoming.communityService : [],
+      totalDesignatedInput: Number(incoming.totalDesignatedInput) || 0,
+      lecturerSignature: sanitizedLecturerDetails.lecturerSignature,
+      lecturerSignatureDate: sanitizedLecturerDetails.lecturerSignatureDate,
+      status: 'Pending HOD',
+      hodSignature: '',
+      deanSignature: '',
+      directorSignature: '',
+      hodSignatureDate: null,
+      deanSignatureDate: null,
+      directorSignatureDate: null,
+      rejectionReason: '',
+      rejectedBy: '',
+      approvalDate: null,
+      submittedAt: new Date(),
+    };
+
+    const savedSubmission = await Submission.create(cleanPayload);
+
+    await createNotification({
+      recipientRole: 'HOD',
+      recipientDepartment: savedSubmission.lecturerDetails.department,
+      title: 'New Submission',
+      message: `${savedSubmission.lecturerDetails.firstName} ${savedSubmission.lecturerDetails.lastName} submitted a new AOR form.`,
+      type: 'info',
+      link: '/hod',
+    });
+
+    res.status(201).json(savedSubmission);
+  } catch (error) {
+    console.error('Error saving data:', error);
+    res.status(500).json({ error: 'Failed to save submission' });
+  }
+});
+
 app.put('/api/submissions/:id', verifyToken, async (req, res) => {
   try {
-    const payload = prepareSubmissionPayload(req.body);
-    const updatedSubmission = await Submission.findByIdAndUpdate(
-      req.params.id,
-      payload,
+    if (req.user.role !== 'Lecturer') {
+      return res.status(403).json({ message: 'Only lecturers can update their AOR forms.' });
+    }
+
+    const existingSubmission = await Submission.findById(req.params.id);
+    if (!existingSubmission) {
+      return res.status(404).json({ message: 'Submission not found' });
+    }
+
+    const activePf = normalizePfValue(req.user.officialPfNumber || req.user.pfNumber);
+    const storedPf = normalizePfValue(existingSubmission?.lecturerDetails?.pfNumber);
+
+    if (!storedPf || storedPf !== activePf) {
+      return res.status(403).json({ message: 'You can only edit your own submission records.' });
+    }
+
+    if (existingSubmission.status !== 'Rejected') {
+      return res.status(409).json({ message: 'This submission is no longer editable by the lecturer.' });
+    }
+
+    const incoming = req.body || {};
+    const incomingLecturerDetails = incoming.lecturerDetails || {};
+    const requestPf = normalizePfValue(incomingLecturerDetails.pfNumber);
+
+    if (requestPf && requestPf !== activePf) {
+      return res.status(403).json({ message: 'You cannot change the lecturer PF number on a submission.' });
+    }
+
+    const submittedSchool = String(incomingLecturerDetails.school || '').trim();
+    const submittedDepartment = String(incomingLecturerDetails.department || '').trim();
+    const currentSchool = String(existingSubmission.lecturerDetails?.school || '').trim();
+    const currentDepartment = String(existingSubmission.lecturerDetails?.department || '').trim();
+
+    if (submittedSchool && submittedSchool.toLowerCase() !== currentSchool.toLowerCase()) {
+      return res.status(403).json({ message: 'You cannot change your school through this edit.' });
+    }
+
+    if (submittedDepartment && submittedDepartment.toLowerCase() !== currentDepartment.toLowerCase()) {
+      return res.status(403).json({ message: 'You cannot change your department through this edit.' });
+    }
+
+    const incomingSession = String(incomingLecturerDetails.session || existingSubmission.lecturerDetails?.session || '').trim();
+    const incomingSemester = String(incomingLecturerDetails.semester || existingSubmission.lecturerDetails?.semester || '').trim();
+
+    if (incomingSession && incomingSession !== existingSubmission.lecturerDetails?.session) {
+      return res.status(403).json({ message: 'You cannot change the academic session through this edit.' });
+    }
+
+    if (incomingSemester && incomingSemester !== existingSubmission.lecturerDetails?.semester) {
+      return res.status(403).json({ message: 'You cannot change the academic semester through this edit.' });
+    }
+
+    const updatedLecturerDetails = {
+      ...existingSubmission.lecturerDetails,
+      firstName: String(incomingLecturerDetails.firstName ?? existingSubmission.lecturerDetails?.firstName ?? '').trim(),
+      lastName: String(incomingLecturerDetails.lastName ?? existingSubmission.lecturerDetails?.lastName ?? '').trim(),
+      middleInitial: String(incomingLecturerDetails.middleInitial ?? existingSubmission.lecturerDetails?.middleInitial ?? '').trim(),
+      appointment: String(incomingLecturerDetails.appointment ?? existingSubmission.lecturerDetails?.appointment ?? '').trim(),
+      pfNumber: storedPf,
+      school: currentSchool,
+      department: currentDepartment,
+      session: existingSubmission.lecturerDetails?.session,
+      semester: existingSubmission.lecturerDetails?.semester,
+      position: String(incomingLecturerDetails.position ?? existingSubmission.lecturerDetails?.position ?? '').trim(),
+      phone: String(incomingLecturerDetails.phone ?? existingSubmission.lecturerDetails?.phone ?? '').trim(),
+      salaryGrade: String(incomingLecturerDetails.salaryGrade ?? existingSubmission.lecturerDetails?.salaryGrade ?? '').trim(),
+      teachingCredit: String(incomingLecturerDetails.teachingCredit ?? existingSubmission.lecturerDetails?.teachingCredit ?? '').trim(),
+      leave: String(incomingLecturerDetails.leave ?? existingSubmission.lecturerDetails?.leave ?? '').trim(),
+      lecturerSignature: String(incomingLecturerDetails.lecturerSignature ?? existingSubmission.lecturerDetails?.lecturerSignature ?? '').trim(),
+      lecturerSignatureDate: normalizeSignatureDate(
+        incomingLecturerDetails.lecturerSignatureDate || incoming.lecturerSignatureDate ||
+        (incomingLecturerDetails.lecturerSignature || incoming.lecturerSignature ? new Date() : existingSubmission.lecturerDetails?.lecturerSignatureDate)
+      ),
+    };
+
+    const nextBody = {
+      lecturerDetails: updatedLecturerDetails,
+      teaching: Array.isArray(incoming.teaching) ? incoming.teaching : existingSubmission.teaching || [],
+      administrativeDuties: Array.isArray(incoming.administrativeDuties) ? incoming.administrativeDuties : existingSubmission.administrativeDuties || [],
+      research: Array.isArray(incoming.research) ? incoming.research : existingSubmission.research || [],
+      communityService: Array.isArray(incoming.communityService) ? incoming.communityService : existingSubmission.communityService || [],
+      totalDesignatedInput: Number(incoming.totalDesignatedInput) || Number(existingSubmission.totalDesignatedInput) || 0,
+      lecturerSignature: updatedLecturerDetails.lecturerSignature,
+      lecturerSignatureDate: updatedLecturerDetails.lecturerSignatureDate,
+      status: 'Pending HOD',
+      hodSignature: '',
+      deanSignature: '',
+      directorSignature: '',
+      hodSignatureDate: null,
+      deanSignatureDate: null,
+      directorSignatureDate: null,
+      rejectionReason: '',
+      rejectedBy: '',
+      approvalDate: null,
+      lastModified: new Date(),
+    };
+
+    const updatedSubmission = await Submission.findOneAndUpdate(
+      {
+        _id: existingSubmission._id,
+        'lecturerDetails.pfNumber': storedPf,
+        status: 'Rejected',
+      },
+      { $set: nextBody },
       { new: true, runValidators: true }
     );
 
     if (!updatedSubmission) {
-      return res.status(404).json({ message: 'Submission not found' });
+      return res.status(409).json({ message: 'This rejected submission can no longer be updated.' });
     }
+
+    await createNotification({
+      recipientRole: 'HOD',
+      recipientDepartment: updatedSubmission.lecturerDetails.department,
+      title: 'Submission Resubmitted',
+      message: `${updatedSubmission.lecturerDetails.firstName} ${updatedSubmission.lecturerDetails.lastName} resubmitted an AOR form for HOD review.`,
+      type: 'info',
+      link: '/hod',
+    });
 
     res.json(updatedSubmission);
   } catch (error) {
@@ -295,7 +668,16 @@ app.patch(
   verifyToken,
   async (req, res) => {
     try {
-      const { schoolName } = req.body;
+      if (req.user.role !== "Director") {
+        return res.status(403).json({
+          message: "Only the Director can approve an entire school.",
+        });
+      }
+
+      const schoolName = String(req.body?.schoolName || "").trim();
+      const requestedSession = String(req.body?.session || "").trim();
+      const requestedSemester = String(req.body?.semester || "").trim();
+      const supportedSemesters = ["First Semester", "Second Semester"];
 
       if (!schoolName) {
         return res.status(400).json({
@@ -303,45 +685,98 @@ app.patch(
         });
       }
 
-      const result = await Submission.updateMany(
-        {
-          "lecturerDetails.school": schoolName,
-          status: "Pending Director",
-        },
-        {
-          $set: {
-            status: "Approved",
-            directorSignature: `Director Approval - ${new Date().toLocaleDateString()}`,
-            approvalDate: new Date(),
-          },
-        }
-      );
-      const approvedSubmissions = await Submission.find({
-  "lecturerDetails.school": schoolName,
-  status: "Approved",
-});
+      let finalSession = requestedSession;
+      let finalSemester = requestedSemester;
 
-for (const submission of approvedSubmissions) {
-  await createNotification({
-    recipientRole: "Lecturer",
-    recipientPFNumber:
-      submission.lecturerDetails.pfNumber,
-    title: "AOR Approved",
-    message:
-      "Your Assignment of Responsibility has been fully approved by the Director.",
-    type: "success",
-    link: "/tracking",
-  });
-}
+      if (!finalSession && !finalSemester) {
+        const settings = await Settings.findOne();
+        finalSession = settings?.academicSession || "2025/2026";
+        finalSemester = settings?.semester || "First Semester";
+      }
+
+      if ((!requestedSession && requestedSemester) || (requestedSession && !requestedSemester)) {
+        return res.status(400).json({
+          message: "Both academic session and semester are required together.",
+        });
+      }
+
+      if (!supportedSemesters.includes(finalSemester)) {
+        return res.status(400).json({
+          message: "Unsupported semester. Use First Semester or Second Semester.",
+        });
+      }
+
+      const settings = await Settings.findOne();
+      const activeSession = settings?.academicSession || "2025/2026";
+      const activeSemester = settings?.semester || "First Semester";
+
+      if (finalSession !== activeSession || finalSemester !== activeSemester) {
+        return res.status(403).json({
+          message: "Historical school approval is not allowed. Use the active institutional cycle.",
+        });
+      }
+
+      const submissionsToApprove = await Submission.find({
+        "lecturerDetails.school": schoolName,
+        "lecturerDetails.session": finalSession,
+        "lecturerDetails.semester": finalSemester,
+        status: "Pending Director",
+      }).lean();
+
+      if (!submissionsToApprove.length) {
+        return res.status(200).json({
+          message: "0 submissions approved successfully",
+          approvedCount: 0,
+        });
+      }
+
+      const approvalDate = new Date();
+      const directorSignature = `Director Approval - ${approvalDate.toLocaleDateString()}`;
+      const approvedSubmissions = [];
+
+      for (const submission of submissionsToApprove) {
+        const updatedSubmission = await Submission.findOneAndUpdate(
+          {
+            _id: submission._id,
+            "lecturerDetails.school": schoolName,
+            "lecturerDetails.session": finalSession,
+            "lecturerDetails.semester": finalSemester,
+            status: "Pending Director",
+          },
+          {
+            $set: {
+              status: "Approved",
+              directorSignature,
+              directorSignatureDate: approvalDate,
+              approvalDate,
+              lastModified: approvalDate,
+            },
+          },
+          { new: true, runValidators: true }
+        );
+
+        if (updatedSubmission) {
+          approvedSubmissions.push(updatedSubmission);
+        }
+      }
+
+      for (const submission of approvedSubmissions) {
+        await createNotification({
+          recipientRole: "Lecturer",
+          recipientPFNumber: submission.lecturerDetails?.pfNumber,
+          title: "AOR Approved",
+          message: "Your Assignment of Responsibility has been fully approved by the Director.",
+          type: "success",
+          link: "/tracking",
+        });
+      }
 
       res.status(200).json({
-        message: `${result.modifiedCount} submissions approved successfully`,
+        message: `${approvedSubmissions.length} submissions approved successfully`,
+        approvedCount: approvedSubmissions.length,
       });
     } catch (error) {
-      console.error(
-        "School approval error:",
-        error
-      );
+      console.error("School approval error:", error);
 
       res.status(500).json({
         message: "Server error",
@@ -351,80 +786,194 @@ for (const submission of approvedSubmissions) {
 );
 // --- UPDATE FORM STATUS (Pipeline Approvals & Rejections) ---
 app.patch('/api/submissions/:id/status', verifyToken, async (req, res) => {
-  try {
-    const updateData = { ...req.body }; 
-    updateData.lastModified = new Date();
+  try {
+    const existingSubmission = await Submission.findById(req.params.id).lean();
 
-    const updatedSubmission = await Submission.findByIdAndUpdate(
-      req.params.id, 
-      updateData,
-      { new: true } );
-    // if lecturerSignature/hodSignature/deanSignature/directorSignature updated and no date provided, set corresponding dates
-    let needsSave = false;
-    if (updateData.lecturerSignature && !updateData.lecturerSignatureDate) {
-      updatedSubmission.lecturerSignatureDate = new Date();
-      needsSave = true;
+    if (!existingSubmission) {
+      return res.status(404).json({ message: 'Submission not found' });
     }
-    if (updateData.hodSignature && !updateData.hodSignatureDate) {
-      updatedSubmission.hodSignatureDate = new Date();
-      needsSave = true;
+
+    const role = req.user?.role;
+    const nextStatus = String(req.body?.status || '').trim();
+    const updateData = { lastModified: new Date() };
+    const normalizeText = (value) => String(value ?? '').trim();
+    const normalizeDepartment = (value) => normalizeText(value).toLowerCase();
+    const normalizeSchool = (value) => normalizeText(value).toLowerCase();
+
+    if (role === 'Lecturer') {
+      return res.status(403).json({ message: 'Lecturers cannot approve or reject submissions through this route.' });
     }
-    if (updateData.deanSignature && !updateData.deanSignatureDate) {
-      updatedSubmission.deanSignatureDate = new Date();
-      needsSave = true;
+
+    if (role === 'HOD') {
+      const currentDepartment = normalizeDepartment(req.user?.department);
+      const targetDepartment = normalizeDepartment(existingSubmission?.lecturerDetails?.department);
+      const currentSchool = normalizeSchool(req.user?.school);
+      const targetSchool = normalizeSchool(existingSubmission?.lecturerDetails?.school);
+
+      if (existingSubmission.status !== 'Pending HOD') {
+        return res.status(409).json({ message: 'Invalid prior status for HOD review.' });
+      }
+
+      if (currentDepartment !== targetDepartment) {
+        return res.status(403).json({ message: 'You are not authorized to act on this department.' });
+      }
+
+      if (currentSchool && targetSchool && currentSchool !== targetSchool) {
+        return res.status(403).json({ message: 'You are not authorized to act on this school.' });
+      }
+
+      if (nextStatus === 'Pending Dean') {
+        const signature = normalizeText(req.body?.hodSignature);
+        if (!signature) {
+          return res.status(400).json({ message: 'HOD signature is required for approval.' });
+        }
+
+        Object.assign(updateData, {
+          status: 'Pending Dean',
+          hodSignature: signature,
+          hodSignatureDate: req.body?.hodSignatureDate ? new Date(req.body.hodSignatureDate) : new Date(),
+          approvalDate: req.body?.approvalDate ? new Date(req.body.approvalDate) : new Date(),
+        });
+      } else if (nextStatus === 'Rejected') {
+        const reason = normalizeText(req.body?.rejectionReason);
+        if (!reason) {
+          return res.status(400).json({ message: 'A rejection reason is required.' });
+        }
+
+        Object.assign(updateData, {
+          status: 'Rejected',
+          rejectionReason: reason,
+          rejectedBy: 'HOD',
+        });
+      } else {
+        return res.status(409).json({ message: 'Invalid HOD transition.' });
+      }
+
+      const atomicFilter = {
+        _id: existingSubmission._id,
+        status: 'Pending HOD',
+        'lecturerDetails.department': existingSubmission.lecturerDetails?.department,
+      };
+
+      if (currentSchool && targetSchool) {
+        atomicFilter['lecturerDetails.school'] = existingSubmission.lecturerDetails?.school;
+      }
+
+      const updatedSubmission = await Submission.findOneAndUpdate(
+        atomicFilter,
+        { $set: updateData },
+        { new: true, runValidators: true }
+      );
+
+      if (!updatedSubmission) {
+        return res.status(409).json({ message: 'Concurrent update detected. Submission status or scope changed.' });
+      }
+
+      if (updatedSubmission.status === 'Pending Dean') {
+        await createNotification({
+          recipientRole: 'Dean',
+          recipientSchool: updatedSubmission.lecturerDetails.school,
+          title: 'New Submission Awaiting Approval',
+          message: `${updatedSubmission.lecturerDetails.firstName} ${updatedSubmission.lecturerDetails.lastName}'s AOR has been verified by the HOD and is awaiting your approval.`,
+          type: 'info',
+          link: '/dean',
+        });
+      }
+
+      if (updatedSubmission.status === 'Rejected') {
+        await createNotification({
+          recipientPFNumber: updatedSubmission.lecturerDetails.pfNumber,
+          title: 'Submission Returned for Correction',
+          message: `Your AOR form has been returned for correction. Reason: ${updatedSubmission.rejectionReason || 'No reason provided'}`,
+          type: 'warning',
+          link: '/track-submission',
+        });
+      }
+
+      return res.json(updatedSubmission);
+    } else if (role === 'Dean') {
+      const currentSchool = normalizeSchool(req.user?.school);
+      const targetSchool = normalizeSchool(existingSubmission?.lecturerDetails?.school);
+
+      if (existingSubmission.status !== 'Pending Dean') {
+        return res.status(409).json({ message: 'Invalid prior status for Dean review.' });
+      }
+
+      if (currentSchool !== targetSchool) {
+        return res.status(403).json({ message: 'You are not authorized to act on this school.' });
+      }
+
+      if (nextStatus === 'Pending Director') {
+        const signature = normalizeText(req.body?.deanSignature);
+        if (!signature) {
+          return res.status(400).json({ message: 'Dean signature is required for approval.' });
+        }
+
+        Object.assign(updateData, {
+          status: 'Pending Director',
+          deanSignature: signature,
+          deanSignatureDate: req.body?.deanSignatureDate ? new Date(req.body.deanSignatureDate) : new Date(),
+          approvalDate: req.body?.approvalDate ? new Date(req.body.approvalDate) : new Date(),
+        });
+      } else if (nextStatus === 'Rejected') {
+        const reason = normalizeText(req.body?.rejectionReason);
+        if (!reason) {
+          return res.status(400).json({ message: 'A rejection reason is required.' });
+        }
+
+        Object.assign(updateData, {
+          status: 'Rejected',
+          rejectionReason: reason,
+          rejectedBy: 'Dean',
+        });
+      } else {
+        return res.status(409).json({ message: 'Invalid Dean transition.' });
+      }
+
+      const atomicFilter = {
+        _id: existingSubmission._id,
+        status: 'Pending Dean',
+        'lecturerDetails.school': existingSubmission.lecturerDetails?.school,
+      };
+
+      const updatedSubmission = await Submission.findOneAndUpdate(
+        atomicFilter,
+        { $set: updateData },
+        { new: true, runValidators: true }
+      );
+
+      if (!updatedSubmission) {
+        return res.status(409).json({ message: 'Concurrent update detected. Submission status or scope changed.' });
+      }
+
+      if (updatedSubmission.status === 'Pending Director') {
+        await createNotification({
+          recipientRole: 'Director',
+          title: 'School Approval Awaiting Validation',
+          message: `${updatedSubmission.lecturerDetails.school} has submitted an AOR awaiting Director validation.`,
+          type: 'info',
+          link: '/director',
+        });
+      }
+
+      if (updatedSubmission.status === 'Rejected') {
+        await createNotification({
+          recipientPFNumber: updatedSubmission.lecturerDetails.pfNumber,
+          title: 'Submission Returned for Correction',
+          message: `Your AOR form has been returned for correction. Reason: ${updatedSubmission.rejectionReason || 'No reason provided'}`,
+          type: 'warning',
+          link: '/track-submission',
+        });
+      }
+
+      return res.json(updatedSubmission);
+    } else {
+      return res.status(403).json({ message: 'Unauthorized status update attempt.' });
     }
-    if (updateData.directorSignature && !updateData.directorSignatureDate) {
-      updatedSubmission.directorSignatureDate = new Date();
-      needsSave = true;
-    }
-    if (needsSave) await updatedSubmission.save();
-// Notify Dean when HOD approves
-if (updatedSubmission.status === "Pending Dean") {
-  await createNotification({
-    recipientRole: "Dean",
-    recipientSchool: updatedSubmission.lecturerDetails.school,
-    title: "New Submission Awaiting Approval",
-    message: `${updatedSubmission.lecturerDetails.firstName} ${updatedSubmission.lecturerDetails.lastName}'s AOR has been verified by the HOD and is awaiting your approval.`,
-    type: "info",
-    link: "/dean",
-  });
-}
-if (updatedSubmission.status === "Pending Director") {
-  await createNotification({
-    recipientRole: "Director",
-    title: "School Approval Awaiting Validation",
-    message: `${updatedSubmission.lecturerDetails.school} has submitted an AOR awaiting Director validation.`,
-    type: "info",
-    link: "/director",
-  });
-}
-// Notify Lecturer when Director approves
-if (updatedSubmission.status === "Approved") {
-  await createNotification({
-    recipientPFNumber:
-      updatedSubmission.lecturerDetails.pfNumber,
-
-    title: "Submission Approved",
-
-    message:
-      "Congratulations! Your Assignment of Responsibility has received final approval.",
-
-    type: "success",
-
-    link: "/track-submission",
-  });
-}
-
-    
-    if (!updatedSubmission) {
-      return res.status(404).json({ message: "Submission not found" });
-    }
-    
-    res.json(updatedSubmission);
-  } catch (error) {
-    console.error("Error updating status:", error);
-    res.status(500).json({ message: "Server error while updating status" });
-  }
+  } catch (error) {
+    console.error('Error updating status:', error);
+    res.status(500).json({ message: 'Server error while updating status' });
+  }
 });
 
 app.post('/api/submissions',verifyToken, async (req, res) => {
@@ -696,7 +1245,7 @@ app.put(
 
       if (!user) {
         return res.status(404).json({
-          message: "User not found",
+          message: "sorry user has been assigned already or Not found",
         });
       }
 
@@ -741,11 +1290,13 @@ app.put(
 app.post("/api/users/reset-password", async (req, res) => {
   try {
     const { pfNumber, name } = req.body;
-    const cleanPF = pfNumber.trim().toUpperCase();
+    const cleanPF = normalizePfValue(pfNumber);
 
-const user = await User.findOne({
-  pfNumber: cleanPF,
-});
+    let user = await User.findOne({ officialPfNumber: cleanPF });
+
+    if (!user && cleanPF) {
+      user = await User.findOne({ pfNumber: cleanPF });
+    }
 
     if (!user) {
       return res.status(404).json({
@@ -774,10 +1325,9 @@ const user = await User.findOne({
     await user.save();
 
     res.json({
-  message:
-    "Password has been reset successfully. Login with password: 123",
-  role: user.role,
-});
+      message: "Password has been reset successfully. Login with password: 123",
+      role: user.role,
+    });
 
   } catch (error) {
     console.error(error);
@@ -796,14 +1346,14 @@ app.put(
         name,
         pfNumber,
         currentPassword,
-        newPassword, 
+        newPassword,
       } = req.body;
 
       const user = await User.findById(req.user.id);
 
       if (!user) {
         return res.status(404).json({
-          message: "User not found",
+          message: "this user has been assigned already",
         });
       }
 
@@ -819,47 +1369,80 @@ app.put(
         });
       }
 
+      const rawPf = String(pfNumber ?? "").replace(/\D/g, "");
+      const canonicalAdminPf =
+      user.role === "Lecturer"
+       ? normalizePfValue(pfNumber)
+       : user.role === "Director"
+       ? normalizePfValue(`D${rawPf}R`)
+        : user.role === "HOD"
+        ? normalizePfValue(`H${rawPf}`)
+        : user.role === "Dean"
+          ? normalizePfValue(`D${rawPf}`)
+          : normalizePfValue(pfNumber);
+
+      const officialPf = canonicalAdminPf;
+
+      if (!officialPf) {
+        return res.status(400).json({
+          message: "Official PF Number is required.",
+        });
+      }
+
+      const conflictUser = await findPfConflict({
+        userId: user._id,
+        pfValue: officialPf,
+      });
+
+      if (conflictUser) {
+        return res.status(409).json({
+          message: `This PF Number is already assigned to another user (${conflictUser.role}).`,
+        });
+      }
+
       const salt = await bcrypt.genSalt(10);
 
-      user.name = name.trim();
-      console.log(req.body);
-      user.pfNumber = pfNumber.trim().toUpperCase();
+      user.name = name.trim(); 
 
+      user.officialPfNumber = officialPf;
       user.password = await bcrypt.hash(
         newPassword,
         salt
       );
-
       user.firstLogin = false;
 
       await user.save();
 
-const token = jwt.sign(
-  {
-    id: user._id,
-    name: user.name,
-    pfNumber: user.pfNumber,
-    role: user.role,
-    department: user.department,
-    school: user.school,
-    firstLogin: user.firstLogin,
-  },
-  "your_super_secret_key",
-  { expiresIn: "1d" }
-);
+      const activePfNumber = user.officialPfNumber || user.pfNumber;
 
-res.json({
-  message: "Profile updated successfully",
-  token,
-  user: {
-    name: user.name,
-    pfNumber: user.pfNumber,
-    role: user.role,
-    department: user.department,
-    school: user.school,
-    firstLogin: user.firstLogin,
-  },
-});
+      const token = jwt.sign(
+        {
+          id: user._id,
+          name: user.name,
+          pfNumber: activePfNumber,
+          officialPfNumber: user.officialPfNumber || null,
+          role: user.role,
+          department: user.department,
+          school: user.school,
+          firstLogin: user.firstLogin,
+        },
+        "your_super_secret_key",
+        { expiresIn: "1d" }
+      );
+
+      res.json({
+        message: "Profile updated successfully",
+        token,
+        user: {
+          name: user.name,
+          pfNumber: activePfNumber,
+          officialPfNumber: user.officialPfNumber || null,
+          role: user.role,
+          department: user.department,
+          school: user.school,
+          firstLogin: user.firstLogin,
+        },
+      });
 
     } catch (error) {
       console.error(error);
@@ -906,7 +1489,17 @@ app.put(
   async (req, res) => {
     try {
       const name = String(req.body.name || "").trim();
-      const pfNumber = String(req.body.pfNumber || "").trim().toUpperCase();
+      const rawPf = String(req.body.pfNumber || "").replace(/\D/g, "");
+      const pfNumber =
+      req.user.role === "Lecturer"
+      ? normalizePfValue(req.body.pfNumber)
+      : req.user.role === "HOD"
+      ? normalizePfValue(`H${rawPf}`)
+      : req.user.role === "Dean"
+        ? normalizePfValue(`D${rawPf}`)
+        : req.user.role === "Director"
+          ? normalizePfValue(`D${rawPf}R`)
+          : normalizePfValue(req.body.pfNumber);
 
       if (!name || !pfNumber) {
         return res.status(400).json({
@@ -918,31 +1511,34 @@ app.put(
 
       if (!currentUser) {
         return res.status(404).json({
-          message: "User not found",
+          message: "Sorry but user was not Seen",
         });
       }
 
-      const pfExists = await User.findOne({
-        pfNumber,
-        _id: { $ne: req.user.id },
+      const pfExists = await findPfConflict({
+        userId: currentUser._id,
+        pfValue: pfNumber,
       });
 
       if (pfExists) {
         return res.status(409).json({
-          message: "This PF Number is already in use.",
+          message: "This PF Number is already assigned to another user.",
         });
       }
 
       currentUser.name = name;
-      currentUser.pfNumber = pfNumber;
+      currentUser.officialPfNumber = pfNumber;
 
       await currentUser.save();
+
+      const activePfNumber = currentUser.officialPfNumber || currentUser.pfNumber;
 
       const token = jwt.sign(
         {
           id: currentUser._id,
           name: currentUser.name,
-          pfNumber: currentUser.pfNumber,
+          pfNumber: activePfNumber,
+          officialPfNumber: currentUser.officialPfNumber || null,
           role: currentUser.role,
           department: currentUser.department,
           school: currentUser.school,
@@ -957,7 +1553,8 @@ app.put(
         token,
         user: {
           name: currentUser.name,
-          pfNumber: currentUser.pfNumber,
+          pfNumber: activePfNumber,
+          officialPfNumber: currentUser.officialPfNumber || null,
           role: currentUser.role,
           department: currentUser.department,
           school: currentUser.school,
@@ -1047,110 +1644,136 @@ app.get('/api/setup-users', async (req, res) => {
   try {
     if (process.env.NODE_ENV === 'production') {
       return res.status(403).json({
-        message: 'User seeding is disabled in production. Use a secure admin route instead.'
+        message: 'Use a secure admin route.'
       });
     }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash('123', salt);
 
-    const usersToUpsert = [
+    const expectedUsers = [
       {
         name: 'Prof. S.M Dauda',
-        pfNumber: '400',
+        pfNumber: 'D400R',
         role: 'Director',
-        password: hashedPassword,
         school: 'Office of the Director',
         department: '',
-        firstLogin: true,
       }
     ];
 
     const deans = [
-      { school: 'SICT', pfNumber: '300' },
-      { school: 'SIPET', pfNumber: '301' },
-      { school: 'SFAT', pfNumber: '302' },
-      { school: 'SSTE', pfNumber: '303' },
-      { school: 'SAMET', pfNumber: '304' },
-      { school: 'SIT', pfNumber: '305' },
-      { school: 'SLS', pfNumber: '306' },
-      { school: 'SET', pfNumber: '307' },
-      { school: 'SAHS', pfNumber: '308' },
-      { school: 'SAFT', pfNumber: '309' },
-      { school: 'SAT', pfNumber: '310' },
-      { school: 'SEET', pfNumber: '311' },
-      { school: 'SPS', pfNumber: '312' },
-      { school: 'PGS', pfNumber: '313' },
-      { school: 'SBMS', pfNumber: '314' },
-      { school: 'SPhS', pfNumber: '315' },
+      { school: 'SICT', pfNumber: 'D300' },
+      { school: 'SIPET', pfNumber: 'D301' },
+      { school: 'SFAT', pfNumber: 'D302' },
+      { school: 'SSTE', pfNumber: 'D303' },
+      { school: 'SAMET', pfNumber: 'D304' },
+      { school: 'SIT', pfNumber: 'D305' },
+      { school: 'SLS', pfNumber: 'D306' },
+      { school: 'SET', pfNumber: 'D307' },
+      { school: 'SAHS', pfNumber: 'D308' },
+      { school: 'SAFT', pfNumber: 'D309' },
+      { school: 'SAT', pfNumber: 'D310' },
+      { school: 'SEET', pfNumber: 'D311' },
+      { school: 'SPS', pfNumber: 'D312' },
+      { school: 'PGS', pfNumber: 'D313' },
+      { school: 'SBMS', pfNumber: 'D314' },
+      { school: 'SPhS', pfNumber: 'D315' },
     ];
 
     deans.forEach((dean) => {
-      usersToUpsert.push({
+      expectedUsers.push({
         name: 'Dean of ' + dean.school,
         pfNumber: dean.pfNumber,
         role: 'Dean',
-        password: hashedPassword,
         school: dean.school,
         department: 'Dean Office',
-        firstLogin: true,
       });
     });
 
     let hodCounter = 200;
     Object.entries(schoolDepartments).forEach(([school, departments]) => {
       departments.forEach((department) => {
-        usersToUpsert.push({
+        expectedUsers.push({
           name: 'HOD ' + department,
-          pfNumber: String(hodCounter),
+          pfNumber: 'H' + String(hodCounter),
           role: 'HOD',
-          password: hashedPassword,
           school,
           department,
-          firstLogin: true,
         });
         hodCounter++;
       });
     });
 
     let lecturerCounter = 1;
-    let lecturerPF = 500;
+    let lecturerPF = '001';
     Object.entries(schoolDepartments).forEach(([school, departments]) => {
       departments.forEach((department) => {
-        for (let i = 1; i <= 78; i++) {
-          usersToUpsert.push({
+        for (let i = 1; i <= 125; i++) {
+          expectedUsers.push({
             name: 'Lecturer ' + lecturerCounter,
-            pfNumber: String(lecturerPF),
+            pfNumber: String(lecturerPF).padStart(3, '0'),
             role: 'Lecturer',
-            password: hashedPassword,
             school,
             department,
-            firstLogin: true,
           });
-
           lecturerCounter++;
           lecturerPF++;
         }
       });
     });
 
-    const upsertResults = await Promise.all(
-      usersToUpsert.map((userData) =>
-        User.findOneAndUpdate(
-          { pfNumber: userData.pfNumber },
-          { $set: userData },
-          { upsert: true, new: true, setDefaultsOnInsert: true }
-        )
-      )
-    );
+    const summary = {
+      created: 0,
+      updated: 0,
+      protected: 0,
+    };
+
+    for (const userData of expectedUsers) {
+      const existingUser = await User.findOne({ pfNumber: userData.pfNumber });
+
+      if (existingUser) {
+        if (existingUser.lastLoginAt) {
+          summary.protected += 1;
+          continue;
+        }
+
+        const updateData = {};
+
+        if (!existingUser.name || existingUser.name.trim() === '') updateData.name = userData.name;
+        if (!existingUser.role) updateData.role = userData.role;
+        if (!existingUser.school && userData.school) updateData.school = userData.school;
+        if (!existingUser.department && userData.department) updateData.department = userData.department;
+        if (!existingUser.password || existingUser.password.trim() === '') updateData.password = hashedPassword;
+        if (existingUser.firstLogin === undefined || existingUser.firstLogin === null) updateData.firstLogin = true;
+
+        if (Object.keys(updateData).length > 0) {
+          await User.updateOne({ _id: existingUser._id }, { $set: updateData });
+          summary.updated += 1;
+        } else {
+          summary.protected += 1;
+        }
+
+        continue;
+      }
+
+      await User.create({
+        ...userData,
+        password: hashedPassword,
+        firstLogin: true,
+      });
+
+      summary.created += 1;
+    }
 
     res.json({
-      message: '✅ Existing users were updated and missing department users were added for local development.',
-      createdOrUpdated: upsertResults.length,
+      message: '✅ User setup completed safely. Existing active users were preserved, missing users were added, and only never-logged-in accounts were updated.',
+      created: summary.created,
+      updated: summary.updated,
+      protected: summary.protected,
       defaultPassword: '123',
     });
   } catch (error) {
-    console.log(error);
+    console.error(error);
     res.status(500).json({
       message: '❌ There was an error updating users.'
     });

@@ -1,10 +1,15 @@
 import ExcelJS from "exceljs";
 import { saveAs } from "file-saver";
+
+const sanitizeExportToken = (value = "") =>
+  String(value).trim().replace(/[\\/\s]+/g, "_");
+
 export const exportDashboardExcel = async (
   submissions,
   schoolsData,
   insights,
-  session = ''
+  session = '',
+  semester = ''
 ) => {
 const workbook = new ExcelJS.Workbook();
 
@@ -122,7 +127,7 @@ sheet.addRow([
 
 sheet.addRow([
   "Semester:",
-  "First Semester",
+  semester || "",
 ]);
 schoolsData.forEach((school) => {
 
@@ -350,12 +355,14 @@ type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 }
 );
 
+const fileStem = [
+  "Director_Report",
+  session ? sanitizeExportToken(session) : "",
+  semester ? sanitizeExportToken(semester) : "",
+].filter(Boolean).join("_");
+
 saveAs(
-file,
-`Director_Report_${
-      new Date()
-        .toISOString()
-        .split("T")[0]
-    }.xlsx`
+  file,
+  `${fileStem || "Director_Report"}.xlsx`
 );
 };

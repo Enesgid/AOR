@@ -1,7 +1,10 @@
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 
-export const exportDashboardPDF = async (reportRef, session = '') => {
+const sanitizeExportToken = (value = "") =>
+  String(value).trim().replace(/[\\/\s]+/g, "_");
+
+export const exportDashboardPDF = async (reportRef, session = '', semester = '') => {
   if (!reportRef.current) return;
 
   const canvas = await html2canvas(reportRef.current, {
@@ -54,6 +57,11 @@ export const exportDashboardPDF = async (reportRef, session = '') => {
     heightLeft -= pageHeight;
   }
 
-  const filename = `AOR_Analytics_Report${session ? `_${session.replace(/\//g, '-')}` : ''}.pdf`;
-  pdf.save(filename);
+  const filename = [
+    "AOR_Analytics_Report",
+    session ? sanitizeExportToken(session) : "",
+    semester ? sanitizeExportToken(semester) : "",
+  ].filter(Boolean).join("_");
+
+  pdf.save(`${filename || "AOR_Analytics_Report"}.pdf`);
 };

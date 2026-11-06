@@ -9,10 +9,10 @@ const ChangePassword = () => {
   const navigate = useNavigate();
   const user =
     getCurrentUser() || {};
-
   const [name, setName] = useState(user.name || "");
   const [pfNumber, setPfNumber] = useState(
-    user.pfNumber || ""
+    user.officialPfNumber ||
+    (user.role === "Lecturer" ? user.pfNumber || "" : "")
   );
   const [currentPassword, setCurrentPassword] =
     useState("");
@@ -48,6 +48,16 @@ const ChangePassword = () => {
     try {
       const token =
         getCurrentToken();
+        const adminPFNumber =
+  user.role === "Lecturer"
+    ? pfNumber
+    : user.role === "Director"
+      ? `D${pfNumber.replace(/\D/g, "")}R`
+      : user.role === "HOD"
+        ? `H${pfNumber.replace(/\D/g, "")}`
+        : user.role === "Dean"
+          ? `D${pfNumber.replace(/\D/g, "")}`
+          : pfNumber;
 
       const response = await fetch(
         `${API_BASE_URL}/api/users/first-login`,
@@ -60,7 +70,7 @@ const ChangePassword = () => {
           },
           body: JSON.stringify({
             name,
-            pfNumber,
+            pfNumber: adminPFNumber,
             currentPassword,
             newPassword,
           }),
@@ -140,7 +150,7 @@ const isFormValid =
           Welcome {name}
         </h2>
 
-        <p className="text-center text-gray-500 mb-8"> Ensure to change your password and Pf number to original values after updating your profile.
+        <p className="text-center text-gray-500 mb-8">Enter your official institutional PF number and change your password securely.
         </p>
         </div>
 
@@ -158,15 +168,13 @@ const isFormValid =
 
           <input
               type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
               value={pfNumber}
               onChange={(e) => {
-                const value = e.target.value.replace(/\D/g, "").slice(0, 6);
+                const value = e.target.value.toUpperCase().slice(0, 8);
                 setPfNumber(value);
               }}
               className="login-input"
-              placeholder="PF Number"
+              placeholder="Official PF Number"
             />
 
           <input

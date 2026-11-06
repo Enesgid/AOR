@@ -3,7 +3,7 @@ import React from 'react';
 const PreviewModal = ({ data, onClose ,onApprove ,onReject}) => {
   if (!data) return null;
   const lecturerDetails = data.lecturerDetails || {};
-  const { teaching, administrativeDuties, research, communityService } = data;
+  const { teaching = [], administrativeDuties = [], research = [], communityService = [] } = data;
 
   const formatShortDate = (value) => {
     if (!value) return '';
@@ -56,8 +56,43 @@ const PreviewModal = ({ data, onClose ,onApprove ,onReject}) => {
         {`
           @media print {
             @page { size: A4; margin: 10mm; } /* Tight margins to save space */
-            body * { visibility: hidden; }
-            .modal-overlay, .modal-overlay * { visibility: visible; }
+           
+body * {
+  visibility: hidden;
+}
+
+.modal-overlay,
+.modal-overlay * {
+  visibility: visible;
+}
+
+.modal-overlay {
+  position: absolute !important;
+  left: 0 !important;
+  top: 0 !important;
+  width: 100% !important;
+  height: auto !important;
+  min-height: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  display: block !important;
+  overflow: visible !important;
+  background: transparent !important;
+}
+
+.modal-content {
+  position: static !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: auto !important;
+  max-height: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  overflow: visible !important;
+  box-shadow: none !important;
+  border: none !important;
+}
+
             .modal-overlay {
               position: absolute; left: 0; top: 0; width: 100%;
               background: transparent !important; padding: 0; display: block;

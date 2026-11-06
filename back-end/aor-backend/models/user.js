@@ -8,6 +8,10 @@ const userSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
+    officialPfNumber: {
+      type: String,
+      default: null,
+    },
     position: {
   type: String,
 },
@@ -21,6 +25,7 @@ const userSchema = new mongoose.Schema(
         "Director",
       ],
     },
+
     password: {
       type: String,
       required: true,
@@ -37,6 +42,11 @@ const userSchema = new mongoose.Schema(
     firstLogin: {
       type: Boolean,
       default: true,
+    },
+
+    lastLoginAt: {
+      type: Date,
+      default: null,
     },
 
     // AI Mock HR Data
