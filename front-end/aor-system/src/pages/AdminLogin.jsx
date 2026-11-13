@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { Eye, EyeOff } from 'lucide-react';
 import Header from '../components/Header';
 import API_BASE_URL from '../config/api';
 
@@ -8,6 +9,7 @@ const AdminLogin = () => {
   const [role, setRole] = useState('HOD'); 
   const [pfNumber, setPfNumber] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
@@ -133,7 +135,35 @@ sessionStorage.setItem(
           </div>
           <div>
             <label className='login-label'>Password</label>
-            <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className='login-input' />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className='login-input'
+                style={{ paddingRight: '42px' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((prev) => !prev)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                style={{
+                  position: 'absolute',
+                  right: '10px',
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  color: '#555',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </div>
           <button type="submit" disabled={isLoading} className='login-btn'>
             {isLoading ? 'Authenticating...' : 'Secure Login'}

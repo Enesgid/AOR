@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 import Header from "../components/Header";
 import { confirmAlert, errorAlert, successAlert } from "../utils/alerts";
 import { getCurrentUser, getCurrentToken } from "../utils/session";
@@ -16,6 +17,9 @@ const ChangePassword = () => {
   );
   const [currentPassword, setCurrentPassword] =
     useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [newPassword, setNewPassword] =
     useState("");
@@ -177,41 +181,89 @@ const isFormValid =
               placeholder="Official PF Number"
             />
 
-          <input
-            type="password"
-            placeholder="Current Password"
-            className="login-input"
-            value={currentPassword}
-            onChange={(e) =>
-              setCurrentPassword(
-                e.target.value
-              )
-            }
-          />
+          <div style={{ position: "relative" }}>
+            <input
+              type={showCurrentPassword ? "text" : "password"}
+              placeholder="Current Password"
+              className="login-input"
+              style={{ paddingRight: "42px" }}
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => setShowCurrentPassword((prev) => !prev)}
+              aria-label={showCurrentPassword ? "Hide current password" : "Show current password"}
+              style={{
+                position: "absolute",
+                right: "10px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                color: "#555",
+              }}
+            >
+              {showCurrentPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
 
-          <input
-            type="password"
-            placeholder="New Password "
-            className="login-input"
-            value={newPassword}
-            onChange={(e) =>
-              setNewPassword(
-                e.target.value
-              )
-            }
-          />
+          <div style={{ position: "relative" }}>
+            <input
+              type={showNewPassword ? "text" : "password"}
+              placeholder="New Password"
+              className="login-input"
+              style={{ paddingRight: "42px" }}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => setShowNewPassword((prev) => !prev)}
+              aria-label={showNewPassword ? "Hide new password" : "Show new password"}
+              style={{
+                position: "absolute",
+                right: "10px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                color: "#555",
+              }}
+            >
+              {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
 
-          <input
-            type="password"
-            placeholder="Confirm Password"
-            className="login-input"
-            value={confirmPassword}
-            onChange={(e) =>
-              setConfirmPassword(
-                e.target.value
-              )
-            }
-          />
+          <div style={{ position: "relative" }}>
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="Confirm Password"
+              className="login-input"
+              style={{ paddingRight: "42px" }}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword((prev) => !prev)}
+              aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"}
+              style={{
+                position: "absolute",
+                right: "10px",
+                top: "50%",
+                transform: "translateY(-50%)",
+                background: "transparent",
+                border: "none",
+                cursor: "pointer",
+                color: "#555",
+              }}
+            >
+              {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+            </button>
+          </div>
 
           <button
             onClick={handleSave}

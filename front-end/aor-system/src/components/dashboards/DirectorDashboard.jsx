@@ -471,7 +471,7 @@ const DirectorDashboard = () => {
                 <h3 className="text-3xl font-bold text-blue-600">{pendingDean}</h3>
                 <p className="text-sm text-gray-500 mt-1">Pending Dean Approval</p>
                 <div className="mt-4 h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-blue-600 rounded-full" style={{ width: `${totalSubmissions > 0 ? (pendingDean / totalSubmissions) * 100 : 0}%` }} />
+                <div className="h-full bg-blue-600 rounded-full" style={{ width: `${totalSubmissions > 0 ? (pendingDean / totalSubmissions) * 100 : 0}%` }} />
                 </div>
               </div>
 

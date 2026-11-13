@@ -421,8 +421,8 @@ app.post('/api/submissions', verifyToken, async (req, res) => {
     const submittedPf = normalizePfValue(incomingLecturerDetails.pfNumber);
     const submittedSchool = String(incomingLecturerDetails.school || '').trim();
     const submittedDepartment = String(incomingLecturerDetails.department || '').trim();
-    const expectedSchool = String(userRecord.school || '').trim();
-    const expectedDepartment = String(userRecord.department || '').trim();
+    // const expectedSchool = String(userRecord.school || '').trim();
+    // const expectedDepartment = String(userRecord.department || '').trim();
 
     if (!activePf) {
       return res.status(400).json({ message: 'Authenticated lecturer PF number is missing.' });
@@ -476,8 +476,8 @@ app.post('/api/submissions', verifyToken, async (req, res) => {
       middleInitial: String(incomingLecturerDetails.middleInitial || '').trim(),
       appointment: String(incomingLecturerDetails.appointment || '').trim(),
       pfNumber: activePf,
-      school: expectedSchool,
-      department: expectedDepartment,
+      school: submittedSchool,
+      department: submittedDepartment ,
       position: String(incomingLecturerDetails.position || '').trim(),
       phone: String(incomingLecturerDetails.phone || '').trim(),
       salaryGrade: String(incomingLecturerDetails.salaryGrade || '').trim(),
@@ -638,7 +638,7 @@ app.put('/api/submissions/:id', verifyToken, async (req, res) => {
         status: 'Rejected',
       },
       { $set: nextBody },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
 
     if (!updatedSubmission) {
@@ -752,7 +752,7 @@ app.patch(
               lastModified: approvalDate,
             },
           },
-          { new: true, runValidators: true }
+          { returnDocument: 'after', runValidators: true }
         );
 
         if (updatedSubmission) {
@@ -862,7 +862,7 @@ app.patch('/api/submissions/:id/status', verifyToken, async (req, res) => {
       const updatedSubmission = await Submission.findOneAndUpdate(
         atomicFilter,
         { $set: updateData },
-        { new: true, runValidators: true }
+        { returnDocument: 'after', runValidators: true }
       );
 
       if (!updatedSubmission) {
@@ -883,6 +883,7 @@ app.patch('/api/submissions/:id/status', verifyToken, async (req, res) => {
       if (updatedSubmission.status === 'Rejected') {
         await createNotification({
           recipientPFNumber: updatedSubmission.lecturerDetails.pfNumber,
+          recipientRole:'Lecturer',
           title: 'Submission Returned for Correction',
           message: `Your AOR form has been returned for correction. Reason: ${updatedSubmission.rejectionReason || 'No reason provided'}`,
           type: 'warning',
@@ -939,7 +940,7 @@ app.patch('/api/submissions/:id/status', verifyToken, async (req, res) => {
       const updatedSubmission = await Submission.findOneAndUpdate(
         atomicFilter,
         { $set: updateData },
-        { new: true, runValidators: true }
+        { returnDocument: 'after', runValidators: true }
       );
 
       if (!updatedSubmission) {
@@ -959,6 +960,7 @@ app.patch('/api/submissions/:id/status', verifyToken, async (req, res) => {
       if (updatedSubmission.status === 'Rejected') {
         await createNotification({
           recipientPFNumber: updatedSubmission.lecturerDetails.pfNumber,
+          recipientRole :'Lecturer',
           title: 'Submission Returned for Correction',
           message: `Your AOR form has been returned for correction. Reason: ${updatedSubmission.rejectionReason || 'No reason provided'}`,
           type: 'warning',
@@ -1155,7 +1157,7 @@ app.patch(
             read: true,
           },
           {
-            new: true,
+            returnDocument: 'after',
           }
         );
 
@@ -1651,6 +1653,10 @@ app.get('/api/setup-users', async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash('123', salt);
 
+    const existingAdminUsers = await User.find({
+      role: { $in: ['Dean', 'HOD'] },
+    }).select('pfNumber role school department').lean();
+
     const expectedUsers = [
       {
         name: 'Prof. S.M Dauda',
@@ -1680,27 +1686,66 @@ app.get('/api/setup-users', async (req, res) => {
       { school: 'SPhS', pfNumber: 'D315' },
     ];
 
+    const getNumericPfValue = (pfNumber, prefix) => {
+      if (!pfNumber) return 0;
+      const match = String(pfNumber).trim().match(new RegExp(`^${prefix}(\\d+)$`, 'i'));
+      return match ? Number(match[1]) : 0;
+    };
+
+    const normalizeValue = (value) => String(value ?? '').trim().toLowerCase();
+
+    let nextDeanNumber = Math.max(
+      0,
+      ...existingAdminUsers
+        .filter((user) => user.role === 'Dean')
+        .map((user) => getNumericPfValue(user.pfNumber, 'D'))
+    );
+
+    let nextHodNumber = Math.max(
+      0,
+      ...existingAdminUsers
+        .filter((user) => user.role === 'HOD')
+        .map((user) => getNumericPfValue(user.pfNumber, 'H'))
+    );
+
+    const existingAdminLookup = new Map(
+      existingAdminUsers.map((user) => [
+        `${normalizeValue(user.role)}|${normalizeValue(user.school)}|${normalizeValue(user.department)}`,
+        user,
+      ])
+    );
+
     deans.forEach((dean) => {
-      expectedUsers.push({
-        name: 'Dean of ' + dean.school,
-        pfNumber: dean.pfNumber,
-        role: 'Dean',
-        school: dean.school,
-        department: 'Dean Office',
-      });
+      const lookupKey = `dean|${normalizeValue(dean.school)}|dean office`;
+      const existingDean = existingAdminLookup.get(lookupKey);
+
+      if (!existingDean) {
+        nextDeanNumber += 1;
+        expectedUsers.push({
+          name: 'Dean of ' + dean.school,
+          pfNumber: 'D' + String(nextDeanNumber),
+          role: 'Dean',
+          school: dean.school,
+          department: 'Dean Office',
+        });
+      }
     });
 
-    let hodCounter = 200;
     Object.entries(schoolDepartments).forEach(([school, departments]) => {
       departments.forEach((department) => {
-        expectedUsers.push({
-          name: 'HOD ' + department,
-          pfNumber: 'H' + String(hodCounter),
-          role: 'HOD',
-          school,
-          department,
-        });
-        hodCounter++;
+        const lookupKey = `hod|${normalizeValue(school)}|${normalizeValue(department)}`;
+        const existingHod = existingAdminLookup.get(lookupKey);
+
+        if (!existingHod) {
+          nextHodNumber += 1;
+          expectedUsers.push({
+            name: 'HOD ' + department,
+            pfNumber: 'H' + String(nextHodNumber),
+            role: 'HOD',
+            school,
+            department,
+          });
+        }
       });
     });
 

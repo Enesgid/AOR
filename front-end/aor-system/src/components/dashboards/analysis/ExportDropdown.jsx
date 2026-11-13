@@ -118,7 +118,7 @@ const ExportDropdown = ({
               </button>
             </div>
             {isHistoricalView && (
-              <div className="text-[11px] text-amber-700">
+              <div className="text-[14px] text-red-500">
                 Historical view active
               </div>
             )}
@@ -127,14 +127,14 @@ const ExportDropdown = ({
             )}
           </div>
 
-          <div className="border-t">
+          <div className="border-t py-2 justify-between w-full">
             <button
               onClick={() => {
                 setOpen(false);
                 onExcelExport();
               }}
               disabled={!selectedSession || !selectedSemester}
-              className={`w-full flex items-center gap-4 px-4 py-3 text-left hover:bg-gray-100 ${!selectedSession || !selectedSemester ? "opacity-60 cursor-not-allowed" : ""}`}
+              className={`w-full flex items-center gap-4 px-4  text-left btn btn-add ${!selectedSession || !selectedSemester ? "opacity-60 cursor-not-allowed" : ""}`}
             >
               <FileSpreadsheet size={18} />
               Download Excel
@@ -146,7 +146,7 @@ const ExportDropdown = ({
                 onPdfExport();
               }}
               disabled={!selectedSession || !selectedSemester}
-              className={`w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-gray-100 ${!selectedSession || !selectedSemester ? "opacity-60 cursor-not-allowed" : ""}`}
+              className={`w-full flex items-center gap-3 px-4 py-3 text-left btn btn-add ${!selectedSession || !selectedSemester ? "opacity-60 cursor-not-allowed" : ""}`}
             >
               <FileText size={18} />
               Download PDF Analysis

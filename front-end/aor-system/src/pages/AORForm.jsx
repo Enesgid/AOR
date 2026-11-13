@@ -37,7 +37,7 @@ const AorForm = () => {
   const [institutionSettings, setInstitutionSettings] = useState(null);
   const [teachingRows, setTeachingRows] = useState([{ id: 1 }]);
   const [adminRows, setAdminRows] = useState([{ id: 2 }]);
-  const [researchRows, setResearchRows] = useState([{ id: 3, percentInput: 15 }]);
+  const [researchRows, setResearchRows] = useState([{ id: 3, percentInput: '' }]);
   const [communityRows, setCommunityRows] = useState([{ id: 4 }]);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const activeCycleRequestRef = useRef(null);
@@ -70,7 +70,7 @@ const AorForm = () => {
     }));
     setTeachingRows([{ id: 1 }]);
     setAdminRows([{ id: 2 }]);
-    setResearchRows([{ id: 3, percentInput: 15 }]);
+    setResearchRows([{ id: 3, percentInput: '' }]);
     setCommunityRows([{ id: 4 }]);
     setSubmissionId(null);
     setSubmissionStatus(null);
@@ -100,8 +100,8 @@ const AorForm = () => {
     setAdminRows(submission?.administrativeDuties?.length ? submission.administrativeDuties : [{ id: 2 }]);
     setResearchRows(
       submission?.research?.length
-        ? submission.research.map((row) => ({ ...row, percentInput: Number(row.percentInput) || 15 }))
-        : [{ id: 3, percentInput: 15 }]
+        ? submission.research.map((row) => ({ ...row, percentInput: Number(row.percentInput) || '' }))
+        : [{ id: 3, percentInput: '' }]
     );
     setCommunityRows(submission?.communityService?.length ? submission.communityService : [{ id: 4 }]);
   };
@@ -176,8 +176,8 @@ const AorForm = () => {
       setAdminRows(draft.adminRows || [{ id: 2 }]);
       setResearchRows(
         draft.researchRows?.length
-          ? draft.researchRows.map((row) => ({ ...row, percentInput: Number(row.percentInput) || 15 }))
-          : [{ id: 3, percentInput: 15 }]
+          ? draft.researchRows.map((row) => ({ ...row, percentInput: Number(row.percentInput) || '' }))
+          : [{ id: 3, percentInput: '' }]
       );
       setCommunityRows(draft.communityRows || [{ id: 4 }]);
       return true;
@@ -406,7 +406,7 @@ const handleClear = async () => {
   }));
   setTeachingRows([{ id: Date.now() }]);
   setAdminRows([{ id: Date.now() + 1 }]);
-  setResearchRows([{ id: Date.now() + 2, percentInput: 15 }]);
+  setResearchRows([{ id: Date.now() + 2, percentInput: '' }]);
   setCommunityRows([{ id: Date.now() + 3 }]);
 
   setErrorMessage("");
@@ -517,18 +517,30 @@ const handleClear = async () => {
       row.id === rowId ? { ...row, role: selectedRole, qap: qapValue } : row
     ));
   };
-const handleResearchFieldChange = (rowId, fieldName, value) => {
-  const fixedPercentInput = 15;
+const hasResearchValues = (row) => {
+  const projectFields = [
+    row?.projectNo,
+    row?.title,
+    row?.inKind,
+    row?.releaseTime,
+    row?.amount,
+    row?.remark,
+  ];
 
+  return projectFields.some((value) => String(value ?? '').trim() !== '');
+};
+
+const handleResearchFieldChange = (rowId, fieldName, value) => {
   setResearchRows(prevRows => prevRows.map(row => {
-    if (row.id === rowId) {
-      return {
-        ...row,
-        [fieldName]: value,
-        percentInput: fixedPercentInput,
-      };
-    }
-    return row;
+    if (row.id !== rowId) return row;
+
+    const updatedRow = {
+      ...row,
+      [fieldName]: value,
+    };
+
+    updatedRow.percentInput = hasResearchValues(updatedRow) ? 15 : '';
+    return updatedRow;
   }));
 };
 useEffect(() => {
@@ -768,7 +780,7 @@ useEffect(() => {
               <td>
                 <input
                   type="number"
-                  value={row.projectNo ? (row.percentInput ?? 15) : ''}
+                  value={hasResearchValues(row) ? (row.percentInput ?? 15) : ''}
                   readOnly
                   style={{ backgroundColor: '#f9f9f9', cursor: 'not-allowed' }}
                 />

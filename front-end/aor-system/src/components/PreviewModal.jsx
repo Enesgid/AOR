@@ -46,7 +46,14 @@ const PreviewModal = ({ data, onClose ,onApprove ,onReject}) => {
     return rows.reduce((total, row) => {
       const value = parseFloat(row[fieldName]) || 0;
       return total + value;
-    }, 0).toFixed(2); 
+    }, 0).toFixed(2);
+  };
+
+  const totalQap = () => {
+    const teachingTotal = Number(calculateTotal(teaching, 'qap')) || 0;
+    const adminTotal = Number(calculateTotal(administrativeDuties, 'qap')) || 0;
+    const researchTotal = Number(calculateTotal(research, 'percentInput')) || 0;
+    return (teachingTotal + adminTotal + researchTotal).toFixed(2);
   };
 
   return (
@@ -55,43 +62,43 @@ const PreviewModal = ({ data, onClose ,onApprove ,onReject}) => {
       <style>
         {`
           @media print {
-            @page { size: A4; margin: 10mm; } /* Tight margins to save space */
+            @page { size: A4; margin: 8mm; } /* Tight margins to save space */
            
-body * {
-  visibility: hidden;
-}
+              body * {
+                visibility: hidden;
+              }
 
-.modal-overlay,
-.modal-overlay * {
-  visibility: visible;
-}
+              .modal-overlay,
+              .modal-overlay * {
+                visibility: visible;
+              }
 
-.modal-overlay {
-  position: absolute !important;
-  left: 0 !important;
-  top: 0 !important;
-  width: 100% !important;
-  height: auto !important;
-  min-height: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  display: block !important;
-  overflow: visible !important;
-  background: transparent !important;
-}
+              .modal-overlay {
+                position: absolute !important;
+                left: 0 !important;
+                top: 0 !important;
+                width: 100% !important;
+                height: auto !important;
+                min-height: 0 !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                display: block !important;
+                overflow: visible !important;
+                background: transparent !important;
+              }
 
-.modal-content {
-  position: static !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  height: auto !important;
-  max-height: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-  overflow: visible !important;
-  box-shadow: none !important;
-  border: none !important;
-}
+              .modal-content {
+                position: static !important;
+                width: 100% !important;
+                max-width: 100% !important;
+                height: auto !important;
+                max-height: none !important;
+                margin: 0 !important;
+                padding: 0 !important;
+                overflow: visible !important;
+                box-shadow: none !important;
+                border: none !important;
+              }
 
             .modal-overlay {
               position: absolute; left: 0; top: 0; width: 100%;
@@ -258,6 +265,10 @@ body * {
                 </tr>
               </tbody>
             </table>
+            <p style={{ textAlign: 'right', paddingRight: '12px', fontWeight: 'bold' }}>
+              TOTAL DESIGNATED(QAP):
+              <span style={{ fontWeight: 'bolder' }}> {totalQap()}</span>
+            </p>
 
             {/* --- 4. COMMUNITY SERVICE --- */}
             <div className="doc-section-title">4. Community Service</div>

@@ -8,7 +8,7 @@ const schoolDepartments = {
   SICT: ['Computer Science', 'Cyber Security Science', 'Information Technology', 'Information Science and Media Studies','Software Engineering', 'Data Science'],
   SIPET: ['Agricultural and Bio-resources Engineering', 'Chemical Engineering', 'Civil Engineering','Nuclear Engineering','Material and Metallurgical Engineering','Mechanical Engineering','Petroleum and Gas Engineering'],
   SIT: ['Logistics and Transport Technology','Entrepreneurship','Project Managemnet Technology'],
-  SLS: ['Biochemistry', 'Forensic science', 'Microbiology','Plant Biology', 'Animal Biology', 'Public health'],
+  SLS: ['Biochemistry', 'Forensic science', 'Microbiology','Plant Biology', 'Animal Biology', 'Public health','Water Sanitation','Hygiene'],
   SPS: ['Chemistry', 'Geography', 'Mathematics', 'Physics','Applied GeoPhysics', 'Geology', 'Statistics','Meterology','Industrial Mathematics','Nuclear Science'],
   SSTE: ['Industrial and Technology Education', 'Science Education','Educational Technology','Library and Information Science','General Studies(GST)'],
   PGS: ['Postgraduate Schools'],
@@ -36,7 +36,11 @@ const LecturerInfo = ({ formData, handleChange }) => {
         </div>
         <div className="form-group">
           <label>Semester</label>
-          <input type="text" value={formData.semester} readOnly className="bg-gray-100 cursor-not-allowed" />
+          <select name="semester" value={formData.semester} onChange={handleChange}>
+            <option value="">Select Semester</option>
+            <option value="First Semester">First Semester</option>
+            <option value="Second Semester">Second Semester</option>
+          </select>
           
         </div>
         <div className="form-group">
@@ -164,6 +168,16 @@ const LecturerInfo = ({ formData, handleChange }) => {
             <option>18</option>
             <option>19</option>
             <option>20</option>
+            <option>21</option>
+            <option>22</option>
+            <option>23</option>
+            <option>24</option>
+            <option>25</option>
+            <option>26</option>
+            <option>27</option>
+            <option>28</option>
+            <option>29</option>
+            <option>30</option>
           </select>
         </div>
         <div className="form-group">
